@@ -33,11 +33,20 @@ class ParticleCreationMenu:
                 x = mid_screen_width - math.sqrt(self.circle_radius**2 - (y - mid_screen_height)**2)
             else:
                 x = mid_screen_width + math.sqrt(self.circle_radius**2 - (y - mid_screen_height)**2)
-            self.points.append(pygame.FRect(x, y, 0, 0))  # Use FRect for positions (width/height 0 for now)
+            self.points.append(pygame.FRect(x, y, 0, 0)) 
         
         self.input_boxes = []
         self.input_box_width = 60
         
+        self.default_mass = 1000
+        self.default_density = 1
+        self.default_x = 0
+        self.default_y = 0
+        self.default_vx = 0
+        self.default_vy = -10
+        
+        self.default_values = [self.default_x, self.default_y, self.default_mass, self.default_vx, self.default_vy, self.default_density]
+
         # Create input boxes with height matching label text height
         for i, point in enumerate(self.points):
             # Get label text height
@@ -49,7 +58,7 @@ class ParticleCreationMenu:
             
             # Input box rect positioned relative to label center
             input_rect = pygame.FRect(
-                point.x + offset,
+                point.x + 20 + offset,
                 point.y - text_height / 2,
                 self.input_box_width,
                 text_height
@@ -59,15 +68,9 @@ class ParticleCreationMenu:
                 relative_rect=input_rect,
                 manager=self.ui_manager
             )
+            input_box.set_text(str(self.default_values[i]))
             self.input_boxes.append(input_box)
-            
-        self.default_mass = 100
-        self.default_density = 1
-        self.default_x = 0
-        self.default_y = 0
-        self.default_vx = randint(MAX_STARTING_VELOCITY)
-        self.default_vy = randint(MAX_STARTING_VELOCITY)
-        
+
         self.menu_particle = Particle(mid_screen_width, mid_screen_height, 0, 0, self.default_mass, self.default_density, groups, particles)
         self.menu_particle.in_menu = True
 
@@ -99,7 +102,6 @@ class ParticleCreationMenu:
             
         self.menu_particle.mass = mass
         self.menu_particle.density = density
-        print(self.menu_particle.mass, self.menu_particle.density)
         
         self.menu_particle.radius = calculate_radius(mass, density)
         self.menu_particle.update_color()
@@ -112,19 +114,42 @@ class ParticleCreationMenu:
         # positional values (x, y)
         try:
             x_input = int(self.input_boxes[0].get_text())
+            if not -HALF_WORLD_WIDTH < x_input < HALF_WORLD_WIDTH:
+                self.input_boxes[0].set_text(str(self.default_x))
         except ValueError:
-            x_input = self.default_x
+            self.input_boxes[0].set_text(str(self.default_x))
+
         try:
             y_input = int(self.input_boxes[1].get_text())
+            if not -HALF_WORLD_HEIGHT < y_input < HALF_WORLD_HEIGHT:
+                self.input_boxes[1].set_text(str(self.default_y))
         except ValueError:
-            y_input = self.default_y
-        if not -HALF_WORLD_WIDTH < x_input < HALF_WORLD_WIDTH:
-            self.input_boxes[0].set_text(self.default_x)
-        if not -HALF_WORLD_HEIGHT < y_input < HALF_WORLD_HEIGHT:
-            self.input_boxes[1].set_text(self.default_y)
-            
+            self.input_boxes[1].set_text(str(self.default_y))
+
         # velocity values (vx, vy)
+        try:
+            vx_input = int(self.input_boxes[3].get_text())
+        except ValueError:
+            self.input_boxes[3].set_text(str(self.default_values[3]))
+        try:
+            vy_input = int(self.input_boxes[4].get_text())
+        except ValueError:
+            self.input_boxes[4].set_text(str(self.default_values[4]))
+
+        # mass and density
+        try:
+            mass_input = int(self.input_boxes[2].get_text())
+            if mass_input <= 0:
+                self.input_boxes[2].set_text(str(self.default_values[2]))
+        except ValueError:
+            self.input_boxes[2].set_text(str(self.default_values[2]))
         
+        try:
+            density_input = int(self.input_boxes[5].get_text())
+            if density_input <= 0:
+                self.input_boxes[5].set_text(str(self.default_values[5]))
+        except ValueError:
+            self.input_boxes[5].set_text(str(self.default_values[5]))
     
     def update(self):
         self.draw_labels()

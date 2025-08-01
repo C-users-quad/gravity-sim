@@ -220,10 +220,13 @@ class Game:
                     pygame.display.toggle_fullscreen()
                     
             if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
-                for box in self.particle_menu.input_boxes:
+                for i, box in enumerate(self.particle_menu.input_boxes):
                     if box == event.ui_element:
                         input = box.get_text()
-                        box.set_text(''.join(filter(str.isdigit, input)))
+                        if input[0] == '-':
+                            box.set_text('-'.join(filter(str.isdigit, input)))
+                        else:
+                            box.set_text(''.join(filter(str.isdigit, input)))
 
 
 if __name__ == '__main__':
