@@ -36,7 +36,8 @@ class Game:
     
     def get_input(self, dt, world_mouse_pos, delta_mouse_pos):
         mouse_presses = self.mouse.get_pressed()
-        key_presses = pygame.key.get_just_pressed()
+        key_just_pressed = pygame.key.get_just_pressed()
+        key_held = pygame.key.get_pressed()
 
         # drag particles with left click
         if mouse_presses[0]:
@@ -69,15 +70,16 @@ class Game:
                 particle = find_particle(self.particles, world_mouse_pos)
                 if particle:
                     self.info_particle = particle
+                    self.info_particle.info = True
             if self.info_particle:
-                # RMB + LCTRL = tp to info particle
-                if key_presses[pygame.K_LCTRL]:
+                # RMB + LCTRL = camera follows info particle
+                if key_held[pygame.K_LCTRL]:
                     particle_pos = pygame.Vector2(self.info_particle.rect.center)
                     self.cam.zoom = 1
                     self.cam.pos = particle_pos
         
         # get rid of particle info
-        if key_presses[pygame.K_ESCAPE]:
+        if key_just_pressed[pygame.K_ESCAPE]:
             if self.menu_open:
                 self.menu_open = False
                 if self.particle_menu:
@@ -86,19 +88,21 @@ class Game:
                     self.particle_menu = None
             
             elif self.info_particle:
+                self.info_particle.info = False
                 self.info_particle = None
-                
-            
 
         # opens particle creation menu
-        if key_presses[pygame.K_RETURN]:
+        if key_just_pressed[pygame.K_RETURN]:
             if not self.menu_open:
                 self.particle_menu = ParticleCreationMenu(self.display_surf, self.font, self.manager, (self.all_sprites, self.particles), self.particles)
                 self.menu_open = True
-            
+            else:
+                self.menu_open = False
+                self.info_particle = self.particle_menu.menu_particle
+                self.particle_menu.exit_menu()
         
         # deletes particle thats being interacted with
-        if key_presses[pygame.K_BACKSPACE]:
+        if key_just_pressed[pygame.K_BACKSPACE]:
             if self.info_particle:
                 self.info_particle.kill()
                 self.info_particle = None
@@ -223,10 +227,12 @@ class Game:
                 for i, box in enumerate(self.particle_menu.input_boxes):
                     if box == event.ui_element:
                         input = box.get_text()
-                        if input[0] == '-':
-                            box.set_text('-'.join(filter(str.isdigit, input)))
-                        else:
-                            box.set_text(''.join(filter(str.isdigit, input)))
+                        if input:
+                            if input[0] == '-':
+                                numbers = ''.join(filter(str.isdigit, input))
+                                box.set_text('-' + numbers)
+                            else:
+                                box.set_text(''.join(filter(str.isdigit, input)))
 
 
 if __name__ == '__main__':

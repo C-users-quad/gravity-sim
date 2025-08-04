@@ -10,12 +10,17 @@ class Particle(pygame.sprite.Sprite):
         self.mass = mass # mass in kilograms (kg)
         self.density = density
         self.radius = calculate_radius(self.mass, self.density)
+        self.highlight_border_width = 5
+
         self.particles = particles # all other particles
+
         self.color_interval = int(MAX_STARTING_MASS / 10)
         self.update_color()
+
         self.being_dragged = False
         self.in_menu = False
-        
+        self.info = False
+
         self.groups = groups
         super().__init__(self.groups)
         self.update_sprite()
@@ -24,6 +29,9 @@ class Particle(pygame.sprite.Sprite):
         self.image = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA)
         pygame.draw.circle(self.image, self.color, (self.radius, self.radius), self.radius)
         self.rect = self.image.get_frect(center = (self.x, self.y))
+
+    def draw_highlight(self, cam):
+        pygame.draw.circle(self.image, HIGHLIGHT_COLOR, (self.radius, self.radius), self.radius, int(self.highlight_border_width / cam.zoom))
     
     def update_direction(self, dt, grid, cam):
         neighbors = grid.get_neighbors(self)
@@ -118,4 +126,5 @@ class Particle(pygame.sprite.Sprite):
             self.update_color()
             self.update_sprite()
             self.update_position(dt)
-            
+        if self.info:
+            self.draw_highlight(cam)

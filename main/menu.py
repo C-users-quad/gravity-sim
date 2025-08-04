@@ -11,6 +11,7 @@ class ParticleCreationMenu:
         
         self.values = ["x", "y", "mass", "vx", "vy", "density"]
         
+        # calculates the positions for the ui elements
         mid_screen_width = WINDOW_WIDTH / 2
         mid_screen_height = WINDOW_HEIGHT / 2
         
@@ -38,6 +39,7 @@ class ParticleCreationMenu:
         self.input_boxes = []
         self.input_box_width = 60
         
+        # default values for when an invalid value is inputted or input box is left empty
         self.default_mass = 1000
         self.default_density = 1
         self.default_x = 0
@@ -78,13 +80,20 @@ class ParticleCreationMenu:
         for i, value in enumerate(self.values):
             text_surf = self.font.render(value, True, "white")
             text_rect = text_surf.get_frect(center=(self.points[i].x, self.points[i].y))
-            
+
+            # Calculate background rect width
+            left = text_rect.left - self.padding
+            right = self.input_boxes[i].relative_rect.right + self.padding
+
             # Background rect
-            rect_width = text_rect.width + self.padding * 2 + self.input_box_width
+            rect_width = right - left
             rect_height = text_rect.height + self.padding * 2
             rect_surf = pygame.Surface((rect_width, rect_height), pygame.SRCALPHA)
             rect_surf.fill(INFO_RECT_COLOR)
-            bg_rect = rect_surf.get_frect(center=(self.points[i].x + self.input_box_width / 2, self.points[i].y))
+            bg_rect = rect_surf.get_frect(topleft = (left, text_rect.top - self.padding))
+
+            pygame.draw.rect(self.display, "red", bg_rect, 2)
+            pygame.draw.rect(self.display, BUTTON_COLOR, text_rect, 2)
             
             self.display.blit(rect_surf, bg_rect)
             self.display.blit(text_surf, text_rect)        
@@ -117,24 +126,32 @@ class ParticleCreationMenu:
             if not -HALF_WORLD_WIDTH < x_input < HALF_WORLD_WIDTH:
                 self.input_boxes[0].set_text(str(self.default_x))
         except ValueError:
-            self.input_boxes[0].set_text(str(self.default_x))
+            text = self.input_boxes[0].get_text()
+            if text and not text[0] == '-':
+                self.input_boxes[0].set_text('')
 
         try:
             y_input = int(self.input_boxes[1].get_text())
             if not -HALF_WORLD_HEIGHT < y_input < HALF_WORLD_HEIGHT:
                 self.input_boxes[1].set_text(str(self.default_y))
         except ValueError:
-            self.input_boxes[1].set_text(str(self.default_y))
+            text = self.input_boxes[1].get_text()
+            if text and not text[0] == '-':
+                self.input_boxes[1].set_text('')
 
         # velocity values (vx, vy)
         try:
             vx_input = int(self.input_boxes[3].get_text())
         except ValueError:
-            self.input_boxes[3].set_text(str(self.default_values[3]))
+            text = self.input_boxes[3].get_text()
+            if text and not text[0] == '-':
+                self.input_boxes[3].set_text('')
         try:
             vy_input = int(self.input_boxes[4].get_text())
         except ValueError:
-            self.input_boxes[4].set_text(str(self.default_values[4]))
+            text = self.input_boxes[4].get_text()
+            if text and not text[0] == '-':
+                self.input_boxes[4].set_text('')
 
         # mass and density
         try:
@@ -142,15 +159,35 @@ class ParticleCreationMenu:
             if mass_input <= 0:
                 self.input_boxes[2].set_text(str(self.default_values[2]))
         except ValueError:
-            self.input_boxes[2].set_text(str(self.default_values[2]))
+            text = self.input_boxes[2].get_text()
+            if text and not text[0] == '-':
+                self.input_boxes[2].set_text('')
         
         try:
             density_input = int(self.input_boxes[5].get_text())
             if density_input <= 0:
                 self.input_boxes[5].set_text(str(self.default_values[5]))
         except ValueError:
-            self.input_boxes[5].set_text(str(self.default_values[5]))
+            text = self.input_boxes[5].get_text()
+            if text and not text[0] == '-':
+                self.input_boxes[5].set_text('')
     
+    def exit_menu(self):
+        # get particle values from input boxes
+        pos = (int(self.input_boxes[0].get_text()), int(self.input_boxes[1].get_text()))
+        velocity = (int(self.input_boxes[3].get_text()), int(self.input_boxes[4].get_text()))
+        mass = int(self.input_boxes[2].get_text())
+        density = int(self.input_boxes[5].get_text())
+
+        # add values to the menu particle
+        self.menu_particle.rect.center = pos
+        self.menu_particle.v = pygame.Vector2(velocity)
+        self.menu_particle.mass = mass
+        self.menu_particle.density = density
+
+        # update particle status
+        self.menu_particle.in_menu = False
+
     def update(self):
         self.draw_labels()
         self.limit_values()
