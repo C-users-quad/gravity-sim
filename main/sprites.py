@@ -26,7 +26,7 @@ class Particle(pygame.sprite.Sprite):
         self.update_sprite()
     
     def update_sprite(self):
-        self.image = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA)
+        self.image = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA).convert_alpha()
         pygame.draw.circle(self.image, self.color, (self.radius, self.radius), self.radius)
         self.rect = self.image.get_frect(center = (self.x, self.y))
 

@@ -91,15 +91,17 @@ class Game:
                 self.info_particle.info = False
                 self.info_particle = None
 
-        # opens particle creation menu
+        # opens + closes particle creation menu
         if key_just_pressed[pygame.K_RETURN]:
             if not self.menu_open:
-                self.particle_menu = ParticleCreationMenu(self.display_surf, self.font, self.manager, (self.all_sprites, self.particles), self.particles)
+                self.particle_menu = ParticleCreationMenu(self.font, self.manager, (self.all_sprites, self.particles), self.particles, self.display_surf)
                 self.menu_open = True
             else:
                 self.menu_open = False
                 self.info_particle = self.particle_menu.menu_particle
+                self.info_particle.info = True
                 self.particle_menu.exit_menu()
+                self.particle_menu = None
         
         # deletes particle thats being interacted with
         if key_just_pressed[pygame.K_BACKSPACE]:
@@ -160,7 +162,7 @@ class Game:
             rect.height * self.cam.zoom
         )
 
-        pygame.draw.rect(self.display_surf, (240, 240, 240), screen_rect, border_width if border_width > 0 else 1)
+        pygame.draw.rect(self.display_surf, BORDER_COLOR, screen_rect, border_width if border_width > 0 else 1)
     
     def run(self):
         self.make_particles()
@@ -222,17 +224,17 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     pygame.display.toggle_fullscreen()
-                    
-            if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
-                for i, box in enumerate(self.particle_menu.input_boxes):
-                    if box == event.ui_element:
-                        input = box.get_text()
-                        if input:
-                            if input[0] == '-':
-                                numbers = ''.join(filter(str.isdigit, input))
-                                box.set_text('-' + numbers)
-                            else:
-                                box.set_text(''.join(filter(str.isdigit, input)))
+            if self.particle_menu:
+                if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
+                    for i, box in enumerate(self.particle_menu.input_boxes):
+                        if box == event.ui_element:
+                            input = box.get_text()
+                            if input:
+                                if input[0] == '-':
+                                    numbers = ''.join(filter(str.isdigit, input))
+                                    box.set_text('-' + numbers)
+                                else:
+                                    box.set_text(''.join(filter(str.isdigit, input)))
 
 
 if __name__ == '__main__':

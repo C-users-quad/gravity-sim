@@ -4,7 +4,7 @@ from utils import *
 
 
 class ParticleCreationMenu:
-    def __init__(self, display, font, ui_manager, groups, particles):
+    def __init__(self, font, ui_manager, groups, particles, display):
         self.display = display
         self.font = font
         self.ui_manager = ui_manager
@@ -18,13 +18,13 @@ class ParticleCreationMenu:
         self.circle_radius = mid_screen_width - (mid_screen_width / 4)
         half = len(self.values) // 2
         
-        self.spacing = self.circle_radius / half
+        self.vertical_spacing = self.circle_radius / half
         self.padding = 4
         
         y_vals_half = [
-            mid_screen_height - self.spacing,
+            mid_screen_height - self.vertical_spacing,
             mid_screen_height,
-            mid_screen_height + self.spacing
+            mid_screen_height + self.vertical_spacing
         ]
         y_values = y_vals_half + y_vals_half
         
@@ -52,24 +52,24 @@ class ParticleCreationMenu:
         # Create input boxes with height matching label text height
         for i, point in enumerate(self.points):
             # Get label text height
-            label_surf = self.font.render(self.values[i], True, "white")
-            text_height = label_surf.get_height() + 5
-            text_width = label_surf.get_width()
+            text_surf = self.font.render(self.values[i], True, "white")
+            text_height = text_surf.get_height()
+            text_width = text_surf.get_width()
             
-            offset = (text_width / 2) + self.padding
+            height_adjustment = 6
             
             # Input box rect positioned relative to label center
             input_rect = pygame.FRect(
-                point.x + 20 + offset,
-                point.y - text_height / 2,
+                0, # dummy positions, repositioned in self.draw_labels()
+                0,
                 self.input_box_width,
-                text_height
+                text_height + height_adjustment
             )
-            
             input_box = pygame_gui.elements.UITextEntryLine(
                 relative_rect=input_rect,
                 manager=self.ui_manager
             )
+
             input_box.set_text(str(self.default_values[i]))
             self.input_boxes.append(input_box)
 
@@ -78,25 +78,34 @@ class ParticleCreationMenu:
 
     def draw_labels(self):
         for i, value in enumerate(self.values):
-            text_surf = self.font.render(value, True, "white")
-            text_rect = text_surf.get_frect(center=(self.points[i].x, self.points[i].y))
-
-            # Calculate background rect width
-            left = text_rect.left - self.padding
-            right = self.input_boxes[i].relative_rect.right + self.padding
+            # text rect dimensions and setup
+            text_surf = self.font.render(value, True, "black")
+            text_rect = text_surf.get_frect()
+            text_rect_width, text_rect_height = text_rect.size
+            
+            # input rect dimensions
+            input_box = self.input_boxes[i]
+            input_box_width, input_box_height = input_box.relative_rect.size
 
             # Background rect
-            rect_width = right - left
+            rect_width = text_rect_width + input_box_width + self.padding * 3
             rect_height = text_rect.height + self.padding * 2
             rect_surf = pygame.Surface((rect_width, rect_height), pygame.SRCALPHA)
-            rect_surf.fill(INFO_RECT_COLOR)
-            bg_rect = rect_surf.get_frect(topleft = (left, text_rect.top - self.padding))
+            bg_rect = rect_surf.get_frect(center = (self.points[i].x, self.points[i].y))
+            rect_surf.fill(BUTTON_COLOR)
 
-            pygame.draw.rect(self.display, "red", bg_rect, 2)
-            pygame.draw.rect(self.display, BUTTON_COLOR, text_rect, 2)
+            # adjust text rect and input rect's positions
+            text_rect.left = bg_rect.left + self.padding
+            text_rect.top = bg_rect.top + self.padding
+            input_rect_left = text_rect.right + self.padding
+            input_rect_top = bg_rect.centery - input_box.relative_rect.height / 2
+            input_box.set_relative_position((input_rect_left, input_rect_top))
             
             self.display.blit(rect_surf, bg_rect)
-            self.display.blit(text_surf, text_rect)        
+            self.display.blit(text_surf, text_rect)
+
+            # border
+            pygame.draw.rect(self.display, BORDER_COLOR, bg_rect, 1, 2)
             
     def draw_particle(self):
         try:
@@ -187,9 +196,13 @@ class ParticleCreationMenu:
 
         # update particle status
         self.menu_particle.in_menu = False
+    
+    def draw_border(self):
+        rect = self.display.get_rect().inflate(-20, -20)
+        pygame.draw.rect(self.display, BORDER_COLOR, rect, 5, 5)
 
     def update(self):
         self.draw_labels()
         self.limit_values()
         self.draw_particle()
-        
+        self.draw_border()
