@@ -9,7 +9,7 @@ class Game:
     def __init__(self):
         # setup
         pygame.init()
-        self.display_surf = pygame.display.set_mode(size=(WINDOW_WIDTH, WINDOW_HEIGHT))
+        self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption('atomic')
         self.on = True
         self.clock = pygame.time.Clock()
@@ -155,9 +155,10 @@ class Game:
 
         rect = pygame.FRect(x, y, width, height)
         # Apply cam transformation:
+        win_w, win_h = self.display_surf.get_size()
         screen_rect = pygame.FRect(
-            (rect.x - self.cam.pos.x) * self.cam.zoom + WINDOW_WIDTH // 2,
-            (rect.y - self.cam.pos.y) * self.cam.zoom + WINDOW_HEIGHT // 2,
+            (rect.x - self.cam.pos.x) * self.cam.zoom + win_w // 2,
+            (rect.y - self.cam.pos.y) * self.cam.zoom + win_h // 2,
             rect.width * self.cam.zoom,
             rect.height * self.cam.zoom
         )

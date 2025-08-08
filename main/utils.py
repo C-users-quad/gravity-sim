@@ -7,12 +7,14 @@ def velocity_of_combined_particles(p1, p2):
     return ((p1.mass * p1.v) + (p2.mass * p2.v)) / (p1.mass + p2.mass)
 
 def draw_info(infos, font, display, corner):
+    display_rect = display.get_bounding_rect()
+
     y_offset = 10
     padding = 4
     spacing = 4
     
     if corner == "topleft": x = 10
-    if corner == "topright": x = WINDOW_WIDTH - 10
+    if corner == "topright": x = display_rect.right - 10
 
     for info in infos:
         text_surf = font.render(info, True, "white")
@@ -24,10 +26,10 @@ def draw_info(infos, font, display, corner):
         rect_surf.fill(INFO_RECT_COLOR)
 
         if corner == "topleft":
-            rect_pos = (10, y_offset)
+            rect_pos = (x, y_offset)
             text_rect.topleft = (rect_pos[0] + padding, rect_pos[1] + padding)
         elif corner == "topright":
-            rect_pos = (WINDOW_WIDTH - rect_width - 10, y_offset)
+            rect_pos = (x - rect_width, y_offset)
             text_rect.topleft = (rect_pos[0] + padding, rect_pos[1] + padding)
 
         display.blit(rect_surf, rect_pos)

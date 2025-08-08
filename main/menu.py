@@ -12,8 +12,9 @@ class ParticleCreationMenu:
         self.values = ["x", "y", "mass", "vx", "vy", "density"]
         
         # calculates the positions for the ui elements
-        mid_screen_width = WINDOW_WIDTH / 2
-        mid_screen_height = WINDOW_HEIGHT / 2
+        win_w, win_h = self.display.get_size()
+        mid_screen_width = win_w / 2
+        mid_screen_height = win_h / 2
         
         self.circle_radius = mid_screen_width - (mid_screen_width / 4)
         half = len(self.values) // 2

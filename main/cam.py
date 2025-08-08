@@ -38,11 +38,11 @@ class Cam:
                 self.pos.y = min_y
     
     def move(self, dt):
-        self.world_clamp("horizontal")
         self.pos.x += self.direction.x * self.speed * dt
+        self.world_clamp("horizontal")
         
-        self.world_clamp("vertical")
         self.pos.y += self.direction.y * self.speed * dt
+        self.world_clamp("vertical")
         
     def update(self, dt):
         self.input()

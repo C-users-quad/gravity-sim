@@ -10,8 +10,9 @@ class AllSprites(pygame.sprite.Group):
         target_pos = cam.pos
         zoom = cam.zoom
         # updates the offset to the target positions current coordinates
-        self.offset.x = (-target_pos[0] * zoom) + (WINDOW_WIDTH / 2)
-        self.offset.y = (-target_pos[1] * zoom) + (WINDOW_HEIGHT / 2)    
+        win_w, win_h = self.display_surface.get_size()
+        self.offset.x = (-target_pos[0] * zoom) + (win_w / 2)
+        self.offset.y = (-target_pos[1] * zoom) + (win_h / 2)    
         
         other_particles = [particle for particle in self if particle.being_dragged == False]
         dragged_particle = [particle for particle in self if particle.being_dragged ==  True]

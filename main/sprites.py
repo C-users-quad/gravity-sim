@@ -31,7 +31,8 @@ class Particle(pygame.sprite.Sprite):
         self.rect = self.image.get_frect(center = (self.x, self.y))
 
     def draw_highlight(self, cam):
-        pygame.draw.circle(self.image, HIGHLIGHT_COLOR, (self.radius, self.radius), self.radius, int(self.highlight_border_width / cam.zoom))
+        highlight_width = int(self.highlight_border_width / cam.zoom) if int(self.highlight_border_width / cam.zoom) > self.highlight_border_width else self.highlight_border_width
+        pygame.draw.circle(self.image, HIGHLIGHT_COLOR, (self.radius, self.radius), self.radius, highlight_width)
     
     def update_direction(self, dt, grid, cam):
         neighbors = grid.get_neighbors(self)
@@ -118,7 +119,7 @@ class Particle(pygame.sprite.Sprite):
             self.color = "#ff0000"
     
     def is_within_render_distance(self, cam):
-        return (self.rect.centerx - cam.pos.x)**2 + (self.rect.centery - cam.pos.y)**2 < (RENDER_DISTANCE+300)**2 / cam.zoom
+        return (self.rect.centerx - cam.pos.x)**2 + (self.rect.centery - cam.pos.y)**2 < (RENDER_DISTANCE / cam.zoom)**2
     
     def update(self, dt, cam, grid):
         if self.being_dragged != True and self.is_within_render_distance(cam) and not self.in_menu:
