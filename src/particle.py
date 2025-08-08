@@ -11,11 +11,9 @@ class Particle(pygame.sprite.Sprite):
         self.density = density
         self.radius = calculate_radius(self.mass, self.density)
         self.highlight_border_width = 5
-
         self.particles = particles # all other particles
 
-        self.much = 1000
-
+        self.much = 1000 # if the particle's mass does not change by this value in a frame, then dont update the color.
         self.update_color()
 
         self.being_dragged = False
@@ -142,7 +140,8 @@ class Particle(pygame.sprite.Sprite):
             self.update_sprite()
             self.update_position(dt)
             self.update_color()
-    
         if self.info:
             self.draw_highlight(cam)
             self.one_info_particle()
+        if self.being_dragged:
+            self.draw_highlight(cam)

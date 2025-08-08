@@ -128,7 +128,7 @@ class ParticleCreationMenu:
         
         display_surf = pygame.display.get_surface()
         display_surf.blit(self.menu_particle.image, self.menu_particle.rect)
-    
+
     def limit_values(self):
         # positional values (x, y)
         try:

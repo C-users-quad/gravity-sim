@@ -76,7 +76,7 @@ class Game:
                 # RMB + LCTRL = camera follows info particle
                 if key_held[pygame.K_LCTRL]:
                     particle_pos = pygame.Vector2(self.info_particle.rect.center)
-                    self.cam.zoom = 1
+                    # self.cam.zoom = 1
                     self.cam.pos = particle_pos
         
         # get rid of particle info
