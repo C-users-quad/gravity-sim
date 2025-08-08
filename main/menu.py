@@ -1,5 +1,5 @@
 from settings import *
-from sprites import *
+from particle import *
 from utils import *
 
 

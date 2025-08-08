@@ -1,8 +1,9 @@
 from settings import *
 from cam import Cam
-from sprites import *
+from particle import *
 from groups import *
 from menu import *
+from utils import *
 
 
 class Game:
@@ -16,7 +17,7 @@ class Game:
         self.mouse = pygame.mouse
         self.manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
         
-        # settings
+        # game state variables
         self.dragged_particle = None
         self.info_particle = None
         self.old_world_mouse_pos = pygame.Vector2(self.mouse.get_pos())
@@ -113,6 +114,7 @@ class Game:
                 self.dragged_particle = None
 
     def draw_particle_info(self):
+        # if any info particle exists, draw its info
         if self.info_particle and self.info_particle.alive():
             particle_info = [
                 "----------[PARTICLE INFO]----------",
@@ -136,15 +138,20 @@ class Game:
         ]
         draw_info(cam_info, self.font, self.display_surf, "topright")
     
+    # initializes the game with particles
     def make_particles(self):
         for _ in range(NUM_PARTICLES):
-            x = randint(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH)
-            y = randint(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT)
-            vx = randint(0, MAX_STARTING_VELOCITY)
-            vy = randint(0, MAX_STARTING_VELOCITY)
-            mass = randint(1, MAX_STARTING_MASS)
-            density = randint(1, MAX_STARTING_DENSITY)
-            Particle(x, y, vx, vy, mass, density, (self.all_sprites, self.particles), self.particles)
+            args = (
+                randint(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH),   # x
+                randint(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT), # y
+                randint(0, MAX_STARTING_VELOCITY),  # vx
+                randint(0, MAX_STARTING_VELOCITY),  # vy
+                randint(1, MAX_STARTING_MASS),  # mass
+                randint(1, MAX_STARTING_DENSITY),   # density
+                (self.all_sprites, self.particles), # groups
+                self.particles  # particles
+            )
+            Particle(*args)
     
     def draw_world_border(self):
         x = -HALF_WORLD_WIDTH - BORDER_WIDTH
@@ -171,7 +178,7 @@ class Game:
             self.grid.clear_grid()
             for particle in self.particles:
                 self.grid.add_particle(particle)
-            
+        
             dt = self.clock.tick(FPS) / 1000
 
             self.cam.update(dt)
@@ -225,6 +232,7 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     pygame.display.toggle_fullscreen()
+            # if a particle creation menu is open, filter its input boxes to only accept valid characters
             if self.particle_menu:
                 if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
                     for i, box in enumerate(self.particle_menu.input_boxes):
