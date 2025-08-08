@@ -17,7 +17,7 @@
   - **ENTER** again to create the particle
   - **ESC** to exit the menu and not create the particle
 - **ESC** to stop displaying particle info
-- **BACKSPACE** to delete the selected particle (select particles with left click)
+- **BACKSPACE** to delete the selected/dragged particle
 
 ## Key + Mouse Combos
 
