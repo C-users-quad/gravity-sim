@@ -4,10 +4,18 @@ from particle import *
 from groups import *
 from menu import *
 from utils import *
+from hints import *
 
 
 class Game:
+    """
+    Main game class for the gravity simulation. Handles initialization, input,
+    rendering, game loop, and event management.
+    """
     def __init__(self):
+        """
+        Initialize the game, set up display, state variables, groups, sprites, and grid.
+        """
         # setup
         pygame.init()
         self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
@@ -27,6 +35,7 @@ class Game:
         # groups
         self.all_sprites = AllSprites()
         self.particles = pygame.sprite.Group()
+        self.logtext = pygame.sprite.Group()
         
         # sprites
         self.cam = Cam()
@@ -36,6 +45,13 @@ class Game:
         self.grid = SpatialGrid(CELL_SIZE)
     
     def get_input(self, dt, world_mouse_pos, delta_mouse_pos):
+        """
+        Handle user input for dragging, info display, menu toggling, particle deletion, and particle repopulation.
+        Args:
+            dt (float): Delta time since last frame.
+            world_mouse_pos (Vector2): Mouse position in world coordinates.
+            delta_mouse_pos (Vector2): Change in mouse position.
+        """
         mouse_presses = self.mouse.get_pressed()
         key_just_pressed = pygame.key.get_just_pressed()
         key_held = pygame.key.get_pressed()
@@ -95,13 +111,17 @@ class Game:
         # opens + closes particle creation menu
         if key_just_pressed[pygame.K_RETURN]:
             if not self.menu_open:
+                if len(self.particles) >= MAX_PARTICLES:
+                    print_to_log(f"ERROR: There are too many particles!", self.font, self.logtext, self.logtext, type="error")
+                    return
                 self.particle_menu = ParticleCreationMenu(self.font, self.manager, (self.all_sprites, self.particles), self.particles, self.display_surf)
+                self.particle_menu.draw_labels() # fixes the input boxes sometimes not appearing bug
                 self.menu_open = True
             else:
                 self.menu_open = False
                 self.info_particle = self.particle_menu.menu_particle
                 self.info_particle.info = True
-                self.particle_menu.exit_menu()
+                self.particle_menu.exit_menu(self.logtext)
                 self.particle_menu = None
         
         # deletes particle thats being interacted with
@@ -113,7 +133,19 @@ class Game:
                 self.dragged_particle.kill()
                 self.dragged_particle = None
 
+        # repopulates the simulation until there are NUM_PARTICLES particles in it.
+        if key_just_pressed[pygame.K_r]:
+            if len(self.particles) >= NUM_PARTICLES:
+                print_to_log("ERROR: Theres already enough particles!", self.font, self.logtext, self.logtext, type="error")
+                return
+            num_particles_to_make = NUM_PARTICLES - len(self.particles)
+            self.make_particles(num_particles_to_make)
+            print_to_log(f"Made {num_particles_to_make} particles!", self.font, self.logtext, self.logtext, type="confirmation")
+
     def draw_particle_info(self):
+        """
+        Draw information about the selected particle on the screen.
+        """
         # if any info particle exists, draw its info
         if self.info_particle and self.info_particle.alive():
             particle_info = [
@@ -129,6 +161,9 @@ class Game:
             self.info_particle = None
     
     def draw_cam_info(self):
+        """
+        Draw camera information (position, speed, zoom, fps) on the screen.
+        """
         cam_info = [
             "----------[CAM INFO]----------",
             f"pos = {truncate_decimal(self.cam.pos.x, 1), truncate_decimal(self.cam.pos.y, 1)}",
@@ -139,8 +174,11 @@ class Game:
         draw_info(cam_info, self.font, self.display_surf, "topright")
     
     # initializes the game with particles
-    def make_particles(self):
-        for _ in range(NUM_PARTICLES):
+    def make_particles(self, num):
+        """
+        Create and initialize all particles for the simulation.
+        """
+        for _ in range(num):
             args = (
                 randint(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH),   # x
                 randint(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT), # y
@@ -154,6 +192,9 @@ class Game:
             Particle(*args)
     
     def draw_world_border(self):
+        """
+        Draw the border of the simulated world on the screen.
+        """
         x = -HALF_WORLD_WIDTH - BORDER_WIDTH
         y = -HALF_WORLD_HEIGHT - BORDER_WIDTH
         width = HALF_WORLD_WIDTH * 2 + BORDER_WIDTH * 2
@@ -173,7 +214,10 @@ class Game:
         pygame.draw.rect(self.display_surf, BORDER_COLOR, screen_rect, border_width if border_width > 0 else 1)
     
     def run(self):
-        self.make_particles()
+        """
+        Main game loop. Handles updates, drawing, and event processing.
+        """
+        self.make_particles(NUM_PARTICLES)
         while self.on:
             self.grid.clear_grid()
             for particle in self.particles:
@@ -184,12 +228,11 @@ class Game:
             self.cam.update(dt)
             self.event_handler()
             self.all_sprites.update(dt, self.cam, self.grid)
+            self.logtext.update(dt)
 
             world_mouse_pos = (pygame.Vector2(self.mouse.get_pos()) - self.all_sprites.offset) / self.cam.zoom
             delta_mouse_pos = world_mouse_pos - self.old_world_mouse_pos
-
             self.get_input(dt, world_mouse_pos, delta_mouse_pos)
-
             self.old_world_mouse_pos = world_mouse_pos
 
             self.display_surf.fill(BG_COLOR)
@@ -198,6 +241,8 @@ class Game:
                 self.draw_cam_info()
                 self.draw_world_border()
                 self.draw_particle_info()
+                self.logtext.draw(self.display_surf)
+                display_hints(self.font, self.logtext, self.particles, pygame.time.get_ticks())
             
             self.manager.update(dt)
             if self.menu_open:
@@ -207,6 +252,9 @@ class Game:
             pygame.display.update()
             
     def event_handler(self):
+        """
+        Handle all pygame events, including quit, input, camera controls, and menu interactions.
+        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
