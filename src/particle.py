@@ -3,15 +3,28 @@ from utils import *
 
 
 class Particle(pygame.sprite.Sprite):
+    """
+    Represents a particle in the gravity simulation. Handles physics, rendering, and interactions.
+    """
     def __init__(self, x, y, vx, vy, mass, density, groups, particles):
+        """
+        Initialize a particle with position, velocity, mass, density, and groups.
+        Args:
+            x, y (float): Initial position.
+            vx, vy (float): Initial velocity components.
+            mass (float): Particle mass.
+            density (float): Particle density.
+            groups: Sprite groups for rendering.
+            particles: Group of all particles for interactions.
+        """
         self.x = x
         self.y = y
         self.v = pygame.Vector2(vx, vy)
         self.mass = mass # mass in kilograms (kg)
         self.density = density
         self.radius = calculate_radius(self.mass, self.density)
-        self.highlight_border_width = 5
         self.particles = particles # all other particles
+        self.min_highlight_width = 5
 
         self.much = 1000 # if the particle's mass does not change by this value in a frame, then dont update the color.
         self.update_color()
@@ -25,15 +38,31 @@ class Particle(pygame.sprite.Sprite):
         self.update_sprite()
     
     def update_sprite(self):
+        """
+        Update the particle's image and rect based on its radius and color.
+        """
         self.image = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA).convert_alpha()
         pygame.draw.circle(self.image, self.color, (self.radius, self.radius), self.radius)
         self.rect = self.image.get_frect(center = (self.x, self.y))
 
     def draw_highlight(self, cam):
-        highlight_width = int(self.highlight_border_width / cam.zoom) if int(self.highlight_border_width / cam.zoom) > self.highlight_border_width else self.highlight_border_width
+        """
+        Draw a highlight border around the particle when selected or dragged.
+        Args:
+            cam: Camera object for zoom.
+        """
+        highlight_width = int(self.radius*0.05)
+        highlight_width = self.min_highlight_width if highlight_width < self.min_highlight_width else highlight_width
+        highlight_width = int(highlight_width / cam.zoom)
         pygame.draw.circle(self.image, HIGHLIGHT_COLOR, (self.radius, self.radius), self.radius, highlight_width)
     
     def apply_forces(self, dt, grid):
+        """
+        Apply gravitational forces from neighboring particles and handle collisions.
+        Args:
+            dt (float): Delta time since last frame.
+            grid: SpatialGrid for neighbor lookup.
+        """
         for other in grid.get_neighbors(self):
             if other == self or other.being_dragged:
                 continue
@@ -52,6 +81,11 @@ class Particle(pygame.sprite.Sprite):
                 self.v += (direction * force / self.mass) * dt
 
     def combine_with(self, other):
+        """
+        Combine this particle with another, updating mass, velocity, and position.
+        Args:
+            other: Another Particle object.
+        """
         new_v = velocity_of_combined_particles(self, other)
         new_mass = self.mass + other.mass
         new_pos = self.rect.center if self.mass >= other.mass else other.rect.center
@@ -73,6 +107,11 @@ class Particle(pygame.sprite.Sprite):
 
     
     def window_collisions(self, direction):
+        """
+        Handle collisions with the simulation window boundaries.
+        Args:
+            direction (str): 'horizontal' or 'vertical'.
+        """
         if direction == "vertical":
             if self.rect.top < -HALF_WORLD_HEIGHT:
                 self.rect.top = -HALF_WORLD_HEIGHT
@@ -93,6 +132,11 @@ class Particle(pygame.sprite.Sprite):
                 self.x = self.rect.centerx
     
     def update_position(self, dt):
+        """
+        Update the particle's position based on velocity and handle window collisions.
+        Args:
+            dt (float): Delta time since last frame.
+        """
         self.x += self.v.x * dt
         self.window_collisions("horizontal")
         
@@ -102,6 +146,9 @@ class Particle(pygame.sprite.Sprite):
         self.rect.center = (self.x, self.y)
         
     def update_color(self):
+        """
+        Update the particle's color based on its mass percentile among all particles.
+        """
         if hasattr(self, "old_mass"):
             if self.mass == self.old_mass:
                 return
@@ -126,15 +173,32 @@ class Particle(pygame.sprite.Sprite):
         self.old_mass = self.mass
     
     def is_within_render_distance(self, cam):
+        """
+        Check if the particle is within render distance of the camera.
+        Args:
+            cam: Camera object.
+        Returns:
+            bool: True if within render distance, else False.
+        """
         return (self.rect.centerx - cam.pos.x)**2 + (self.rect.centery - cam.pos.y)**2 < (RENDER_DISTANCE / cam.zoom)**2
     
     def one_info_particle(self):
+        """
+        Ensure only one particle is marked for info display at a time.
+        """
         for particle in self.particles:
             if particle.info and particle != self:
                 self.info = False
                 return
 
     def update(self, dt, cam, grid):
+        """
+        Update the particle each frame: apply forces, update position, color, and highlight.
+        Args:
+            dt (float): Delta time since last frame.
+            cam: Camera object.
+            grid: SpatialGrid for neighbor lookup.
+        """
         if self.being_dragged != True and self.is_within_render_distance(cam) and not self.in_menu:
             self.apply_forces(dt, grid)
             self.update_sprite()

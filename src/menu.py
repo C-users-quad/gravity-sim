@@ -4,7 +4,20 @@ from utils import *
 
 
 class ParticleCreationMenu:
+    """
+    Menu for creating and customizing a particle in the simulation.
+    Handles UI elements, input validation, and particle preview.
+    """
     def __init__(self, font, ui_manager, groups, particles, display):
+        """
+        Initialize the particle creation menu and its UI elements.
+        Args:
+            font: Font used for labels and input boxes.
+            ui_manager: pygame_gui UI manager.
+            groups: Sprite groups for the menu particle.
+            particles: Particle group for simulation.
+            display: Surface to draw the menu on.
+        """
         self.display = display
         self.font = font
         self.ui_manager = ui_manager
@@ -78,6 +91,9 @@ class ParticleCreationMenu:
         self.menu_particle.in_menu = True
 
     def draw_labels(self):
+        """
+        Draw labels and input boxes for particle properties on the menu.
+        """
         for i, value in enumerate(self.values):
             # text rect dimensions and setup
             text_surf = self.font.render(value, True, "black")
@@ -109,6 +125,9 @@ class ParticleCreationMenu:
             pygame.draw.rect(self.display, BORDER_COLOR, bg_rect, 1, 2)
             
     def draw_particle(self):
+        """
+        Draw a preview of the particle with current input values.
+        """
         try:
             mass = int(self.input_boxes[2].get_text()) 
         except ValueError:
@@ -130,6 +149,9 @@ class ParticleCreationMenu:
         display_surf.blit(self.menu_particle.image, self.menu_particle.rect)
 
     def limit_values(self):
+        """
+        Validate and limit the values entered in the input boxes to acceptable ranges.
+        """
         # positional values (x, y)
         try:
             x_input = int(self.input_boxes[0].get_text())
@@ -182,7 +204,10 @@ class ParticleCreationMenu:
             if text and not text[0] == '-':
                 self.input_boxes[5].set_text('')
     
-    def exit_menu(self):
+    def exit_menu(self, logtext):
+        """
+        Apply the input values to the menu particle and exit the menu.
+        """
         # get particle values from input boxes
         pos = (int(self.input_boxes[0].get_text()), int(self.input_boxes[1].get_text()))
         velocity = (int(self.input_boxes[3].get_text()), int(self.input_boxes[4].get_text()))
@@ -197,12 +222,27 @@ class ParticleCreationMenu:
 
         # update particle status
         self.menu_particle.in_menu = False
+
+        # log particle creation
+        print_to_log(f"Created a particle @ (x:{truncate_decimal(self.menu_particle.x, 1)}, y:{truncate_decimal(self.menu_particle.y, 1)})."+
+                     " You can view the particle by doing LCTRL+RMB!",
+            self.font,
+            logtext,
+            logtext,
+            type = "confirmation"
+        )
     
     def draw_border(self):
+        """
+        Draw a border around the menu area.
+        """
         rect = self.display.get_rect().inflate(-20, -20)
         pygame.draw.rect(self.display, BORDER_COLOR, rect, 5, 5)
 
     def update(self):
+        """
+        Update the menu UI, validate input, draw the particle preview and border.
+        """
         self.draw_labels()
         self.limit_values()
         self.draw_particle()

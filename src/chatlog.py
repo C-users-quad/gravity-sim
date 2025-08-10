@@ -53,12 +53,12 @@ class LogText(pygame.sprite.Sprite):
         Returns:
             str: Color name for rendering.
         """
-        if type.lower() == "normal":
-            return "white"
-        elif type.lower() == "error":
+        if type.lower() == "error":
             return "red"
         elif type.lower() == "confirmation":
             return "chartreuse"
+        elif type.lower() == "hint":
+            return "darkgoldenrod1"
         else:
             return "white"
 

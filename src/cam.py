@@ -1,19 +1,33 @@
 from settings import *
 
 class Cam:
+    """
+    Camera class for handling position, movement, and zoom in the simulation world.
+    """
     def __init__(self):
+        """
+        Initialize the camera with default position, speed, direction, and zoom.
+        """
         self.pos = pygame.Vector2(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2)
         self.speed = MIN_CAM_SPEED
         self.direction = pygame.Vector2()
         self.zoom = 1
         
     def input(self):
+        """
+        Process keyboard input to set camera movement direction.
+        """
         keys = pygame.key.get_pressed()
         self.direction.x = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
         self.direction.y = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
         self.direction = self.direction.normalize() if self.direction else self.direction
     
     def world_clamp(self, direction):
+        """
+        Clamp the camera position to stay within the world boundaries.
+        Args:
+            direction (str): 'horizontal' or 'vertical' axis to clamp.
+        """
         half_viewport_width = (WINDOW_WIDTH / 2) / self.zoom
         half_viewport_height = (WINDOW_HEIGHT / 2) / self.zoom
         
@@ -38,6 +52,11 @@ class Cam:
                 self.pos.y = min_y
     
     def move(self, dt):
+        """
+        Move the camera based on direction, speed, and delta time.
+        Args:
+            dt (float): Delta time since last frame.
+        """
         self.pos.x += self.direction.x * self.speed * dt
         self.world_clamp("horizontal")
         
@@ -45,5 +64,10 @@ class Cam:
         self.world_clamp("vertical")
         
     def update(self, dt):
+        """
+        Update the camera each frame: process input and move.
+        Args:
+            dt (float): Delta time since last frame.
+        """
         self.input()
         self.move(dt)
