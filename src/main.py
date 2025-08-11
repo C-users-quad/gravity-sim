@@ -43,6 +43,9 @@ class Game:
         
         # spatial partitioning grid
         self.grid = SpatialGrid(CELL_SIZE)
+
+        # logprinter object
+        self.logprinter = LogPrinter(self.font, self.logtext, self.logtext)
     
     def get_input(self, dt, world_mouse_pos, delta_mouse_pos):
         """
@@ -97,12 +100,9 @@ class Game:
         
         # get rid of particle info
         if key_just_pressed[pygame.K_ESCAPE]:
-            if self.menu_open:
-                self.menu_open = False
-                if self.particle_menu:
-                    for input_box in self.particle_menu.input_boxes:
-                        input_box.kill()
-                    self.particle_menu = None
+            if self.particle_menu:
+                self.particle_menu = None
+                self.particle_menu.exit_menu(self.logprinter, "dont create particle")
             
             elif self.info_particle:
                 self.info_particle.info = False
@@ -110,18 +110,15 @@ class Game:
 
         # opens + closes particle creation menu
         if key_just_pressed[pygame.K_RETURN]:
-            if not self.menu_open:
+            if not self.particle_menu:
                 if len(self.particles) >= MAX_PARTICLES:
-                    print_to_log(f"ERROR: There are too many particles!", self.font, self.logtext, self.logtext, type="error")
+                    self.logprinter.print(f"There are too many particles!", type="error")
                     return
-                self.particle_menu = ParticleCreationMenu(self.font, self.manager, (self.all_sprites, self.particles), self.particles, self.display_surf)
-                self.particle_menu.draw_labels() # fixes the input boxes sometimes not appearing bug
-                self.menu_open = True
+                self.particle_menu = ParticleCreationMenu(self.font, self.manager, (self.all_sprites, self.particles), self.particles)
             else:
-                self.menu_open = False
                 self.info_particle = self.particle_menu.menu_particle
                 self.info_particle.info = True
-                self.particle_menu.exit_menu(self.logtext)
+                self.particle_menu.exit_menu(self.logprinter, "create particle")
                 self.particle_menu = None
         
         # deletes particle thats being interacted with
@@ -136,11 +133,11 @@ class Game:
         # repopulates the simulation until there are NUM_PARTICLES particles in it.
         if key_just_pressed[pygame.K_r]:
             if len(self.particles) >= NUM_PARTICLES:
-                print_to_log("ERROR: Theres already enough particles!", self.font, self.logtext, self.logtext, type="error")
+                self.logprinter.print("Theres already enough particles!", type="error")
                 return
             num_particles_to_make = NUM_PARTICLES - len(self.particles)
             self.make_particles(num_particles_to_make)
-            print_to_log(f"Made {num_particles_to_make} particles!", self.font, self.logtext, self.logtext, type="confirmation")
+            self.logprinter.print(f"Made {num_particles_to_make} particles!", type="info")
 
     def draw_particle_info(self):
         """
@@ -236,17 +233,17 @@ class Game:
             self.old_world_mouse_pos = world_mouse_pos
 
             self.display_surf.fill(BG_COLOR)
-            if not self.menu_open:
+            if not self.particle_menu:
                 self.all_sprites.draw(self.cam)
                 self.draw_cam_info()
                 self.draw_world_border()
                 self.draw_particle_info()
                 self.logtext.draw(self.display_surf)
-                display_hints(self.font, self.logtext, self.particles, pygame.time.get_ticks())
+                display_hints(self.logprinter)
             
             self.manager.update(dt)
-            if self.menu_open:
-                self.particle_menu.update()
+            if self.particle_menu:
+                self.particle_menu.update(self.manager)
                 self.manager.draw_ui(self.display_surf)
 
             pygame.display.update()
@@ -280,6 +277,7 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     pygame.display.toggle_fullscreen()
+
             # if a particle creation menu is open, filter its input boxes to only accept valid characters
             if self.particle_menu:
                 if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
@@ -292,7 +290,10 @@ class Game:
                                     box.set_text('-' + numbers)
                                 else:
                                     box.set_text(''.join(filter(str.isdigit, input)))
-
+            
+            if event.type == pygame.VIDEORESIZE:
+                self.display_surf = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                self.manager.set_window_resolution((event.w, event.h))
 
 if __name__ == '__main__':
     game = Game()

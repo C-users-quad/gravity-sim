@@ -171,7 +171,7 @@ def split_string_every_n_chars(string, n):
     """
     return [string[i:i+n] for i in range(0, len(string), n)]
 
-def print_to_log(string, font, groups, logtext, type="normal"):
+class LogPrinter:
     """
     Print a string to the chat log, splitting it if necessary.
     Args:
@@ -181,6 +181,23 @@ def print_to_log(string, font, groups, logtext, type="normal"):
         logtext: Log text group.
         type (str): Type of message ('normal', 'error').
     """
-    strings = split_string_every_n_chars(string, MAX_LOG_TEXT_CHAR_WIDTH)
-    for string in strings:
-        LogText(string, font, groups, logtext, type)
+    def __init__(self, font, groups, logtext):
+        self.font = font
+        self.groups = groups
+        self.logtext = logtext
+
+    def add_prefix(self, string, type):
+        if type == "normal":
+            return string
+        elif type == "error":
+            return "[ERROR]" + " " + string
+        elif type == "hint":
+            return "[HINT]" + " " + string
+        elif type == "info":
+            return "[INFO]" + " " + string
+
+    def print(self, string, type="normal"):
+        string = self.add_prefix(string, type)
+        strings = split_string_every_n_chars(string, MAX_LOG_TEXT_CHAR_WIDTH)
+        for string in strings:
+            LogText(string, self.font, self.groups, self.logtext, type)

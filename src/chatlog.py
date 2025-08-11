@@ -55,7 +55,7 @@ class LogText(pygame.sprite.Sprite):
         """
         if type.lower() == "error":
             return "red"
-        elif type.lower() == "confirmation":
+        elif type.lower() == "info":
             return "chartreuse"
         elif type.lower() == "hint":
             return "darkgoldenrod1"
@@ -92,10 +92,16 @@ class LogText(pygame.sprite.Sprite):
             y_offset += text.height + self.spacing
         self.rect.bottomleft = (self.padding, self.win_h - y_offset)
 
+    def killcheck(self):
+        if self.rect.bottom <= 0:
+            self.kill()
+
     def update(self, dt):
         """
         Update the sprite each frame: fade out and reposition.
+        Deletes the sprite if its not in the bounds of the window.
         """
+        self.killcheck()
         self.update_win_size_vars()
         self.fade(dt)
         self.update_position()
