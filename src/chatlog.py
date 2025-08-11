@@ -28,13 +28,13 @@ class LogText(pygame.sprite.Sprite):
 
         # initializes pygame.sprite.Sprite.__init__()
         super().__init__(groups)
+        self.original_image = font.render(text, True, color).convert_alpha()
         self.image = font.render(text, True, color).convert_alpha()
         self.rect = self.image.get_frect(bottomleft = (self.padding, self.spacing))
 
         # dimensions. max width represents the maximum line width.
         self.width = self.image.get_width()
         self.height = self.image.get_height()
-        self.max_width = MAX_LOG_TEXT_CHAR_WIDTH
 
         # values relevant to fading
         self.alpha = 255

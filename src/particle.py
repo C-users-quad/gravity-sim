@@ -36,6 +36,8 @@ class Particle(pygame.sprite.Sprite):
         self.groups = groups
         super().__init__(groups)
         self.update_sprite()
+
+        self.merge_targets = set()
     
     def update_sprite(self):
         """
@@ -67,18 +69,23 @@ class Particle(pygame.sprite.Sprite):
             if other == self or other.being_dragged:
                 continue
 
-            dx = other.rect.centerx - self.rect.centerx
-            dy = other.rect.centery - self.rect.centery
+            dx = other.x - self.x
+            dy = other.y - self.y
             distance = math.hypot(dx, dy)
 
-            if distance <= (self.radius + other.radius) / 1.2:
-                self.combine_with(other)
-                return
-
-            if distance > 0:
+            if distance <= (self.radius + other.radius):
+                self.merge_targets.add(other)
+                other.merge_targets.add(self)
+            elif distance > 0:
                 direction = pygame.Vector2(dx, dy).normalize()
                 force = G * self.mass * other.mass / distance ** 2
                 self.v += (direction * force / self.mass) * dt
+
+    def process_merges(self):
+        for other in list(self.merge_targets):
+            if other.alive() and self.alive() and self.mass >= other.mass:
+                self.combine_with(other)
+            self.merge_targets.remove(other)
 
     def combine_with(self, other):
         """
@@ -201,6 +208,7 @@ class Particle(pygame.sprite.Sprite):
         """
         if self.being_dragged != True and self.is_within_render_distance(cam) and not self.in_menu:
             self.apply_forces(dt, grid)
+            self.process_merges()
             self.update_sprite()
             self.update_position(dt)
             self.update_color()

@@ -292,7 +292,6 @@ class Game:
                                     box.set_text(''.join(filter(str.isdigit, input)))
             
             if event.type == pygame.VIDEORESIZE:
-                self.display_surf = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
                 self.manager.set_window_resolution((event.w, event.h))
 
 if __name__ == '__main__':
