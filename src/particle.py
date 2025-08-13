@@ -33,11 +33,11 @@ class Particle(pygame.sprite.Sprite):
         self.in_menu = False
         self.info = False
 
+        self.old_pos = self.new_pos = (self.x, self.y)
+
         self.groups = groups
         super().__init__(groups)
         self.update_sprite()
-
-        self.merge_targets = set()
     
     def update_sprite(self):
         """
@@ -58,34 +58,70 @@ class Particle(pygame.sprite.Sprite):
         highlight_width = int(highlight_width / cam.zoom)
         pygame.draw.circle(self.image, HIGHLIGHT_COLOR, (self.radius, self.radius), self.radius, highlight_width)
     
-    def apply_forces(self, dt, grid):
-        """
-        Apply gravitational forces from neighboring particles and handle collisions.
-        Args:
-            dt (float): Delta time since last frame.
-            grid: SpatialGrid for neighbor lookup.
-        """
+    def handle_particle_interactions(self, dt, grid):
         for other in grid.get_neighbors(self):
             if other == self or other.being_dragged:
                 continue
+            # force application and distance collision check
+            self.apply_forces(other, dt)
+            # collision check  
+            self.check_collision_and_merge(other)
 
-            dx = other.x - self.x
-            dy = other.y - self.y
-            distance = math.hypot(dx, dy)
+    def check_collision_and_merge(self, other):
+        """Continuous collision detection for two moving circles in one frame."""
+        # Relative motion
+        ### rel_vx = (distance moved by self particle on x axis) - (distance moved by other particle on x axis)
+        ### rel_vy = (distance moved by self particle on y axis) - (distance moved by other particle on y axis)
+        rel_vx = (self.new_pos[0] - self.old_pos[0]) - (other.new_pos[0] - other.old_pos[0])
+        rel_vy = (self.new_pos[1] - self.old_pos[1]) - (other.new_pos[1] - other.old_pos[1])
 
-            if distance <= (self.radius + other.radius):
-                self.merge_targets.add(other)
-                other.merge_targets.add(self)
-            elif distance > 0:
-                direction = pygame.Vector2(dx, dy).normalize()
-                force = G * self.mass * other.mass / distance ** 2
-                self.v += (direction * force / self.mass) * dt
+        # Starting offset
+        dx = self.old_pos[0] - other.old_pos[0]
+        dy = self.old_pos[1] - other.old_pos[1]
 
-    def process_merges(self):
-        for other in list(self.merge_targets):
-            if other.alive() and self.alive() and self.mass >= other.mass:
+        # Combined radius
+        R = self.radius + other.radius
+
+        # Quadratic equation for time of collision: |(dx, dy) + t*(rel_vx, rel_vy)|^2 = R^2
+        a = rel_vx**2 + rel_vy**2 # velocity of self toward other
+        b = 2 * (dx * rel_vx + dy * rel_vy) # 
+        c = dx**2 + dy**2 - R**2 # distance squared minus combined radius squared
+
+        # if a is 0, then the particles arent moving.
+        if a == 0:  # No relative motion — static overlap check
+            # if c is less than or equal to zero, then the particles are closer than their radiuses combined, or at that distance.
+            if c <= 0:
                 self.combine_with(other)
-            self.merge_targets.remove(other)
+            return
+
+        discriminant = b**2 - 4*a*c
+        # negative discriminant = no solutions = no intersections.
+        if discriminant < 0:
+            return  # No intersection
+
+        sqrt_disc = math.sqrt(discriminant)
+        # the 2 solutions to the quadratic are t1 and t2. the values of t between these 2 are the time during this frame.
+        t1 = (-b - sqrt_disc) / (2*a)
+        t2 = (-b + sqrt_disc) / (2*a)
+
+        # If any collision happens within this frame [0,1]
+        if (0 <= t1 <= 1) or (0 <= t2 <= 1):
+            self.combine_with(other)
+
+    def apply_forces(self, other, dt):
+        """
+        Apply gravitational forces from neighboring particles.
+        Args:
+            dt (float): Delta time since last frame.
+        """
+        dx = other.x - self.x
+        dy = other.y - self.y
+        distance = math.hypot(dx, dy)
+
+        if distance > 0:
+            direction = pygame.Vector2(dx, dy).normalize()
+            force = G * self.mass * other.mass / distance ** 2
+            self.v += (direction * force / self.mass) * dt
 
     def combine_with(self, other):
         """
@@ -111,7 +147,6 @@ class Particle(pygame.sprite.Sprite):
             other.radius = calculate_radius(other.mass, other.density)
             other.update_sprite()
             self.kill()
-
     
     def window_collisions(self, direction):
         """
@@ -151,7 +186,7 @@ class Particle(pygame.sprite.Sprite):
         self.window_collisions("vertical")
         
         self.rect.center = (self.x, self.y)
-        
+
     def update_color(self):
         """
         Update the particle's color based on its mass percentile among all particles.
@@ -207,10 +242,11 @@ class Particle(pygame.sprite.Sprite):
             grid: SpatialGrid for neighbor lookup.
         """
         if self.being_dragged != True and self.is_within_render_distance(cam) and not self.in_menu:
-            self.apply_forces(dt, grid)
-            self.process_merges()
+            self.old_pos = (self.x, self.y)
             self.update_sprite()
             self.update_position(dt)
+            self.new_pos = (self.x, self.y)
+            self.handle_particle_interactions(dt, grid)
             self.update_color()
         if self.info:
             self.draw_highlight(cam)

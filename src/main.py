@@ -147,10 +147,10 @@ class Game:
         if self.info_particle and self.info_particle.alive():
             particle_info = [
                 "----------[PARTICLE INFO]----------",
-                f"mass = {self.info_particle.mass}",
-                f"velocity = {self.info_particle.v}",
+                f"mass = {format(self.info_particle.mass, ",")} kg",
+                f"velocity = {self.info_particle.v} m/s",
                 f"density = {self.info_particle.density}",
-                f"radius = {self.info_particle.radius}",
+                f"radius = {self.info_particle.radius} m",
                 f"position = {truncate_decimal(self.info_particle.rect.centerx, 1), truncate_decimal(self.info_particle.rect.centery, 1)}"
             ]
             draw_info(particle_info, self.font, self.display_surf, "topleft")

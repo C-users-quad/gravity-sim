@@ -165,7 +165,7 @@ class ParticleCreationMenu:
         # positional values (x, y)
         try:
             x_input = int(self.input_boxes[0].get_text())
-            if not -HALF_WORLD_WIDTH < x_input < HALF_WORLD_WIDTH:
+            if not -HALF_WORLD_WIDTH <= x_input <= HALF_WORLD_WIDTH:
                 self.input_boxes[0].set_text(str(self.default_x))
         except ValueError:
             text = self.input_boxes[0].get_text()
@@ -174,7 +174,7 @@ class ParticleCreationMenu:
 
         try:
             y_input = int(self.input_boxes[1].get_text())
-            if not -HALF_WORLD_HEIGHT < y_input < HALF_WORLD_HEIGHT:
+            if not -HALF_WORLD_HEIGHT <= y_input <= HALF_WORLD_HEIGHT:
                 self.input_boxes[1].set_text(str(self.default_y))
         except ValueError:
             text = self.input_boxes[1].get_text()
@@ -220,13 +220,13 @@ class ParticleCreationMenu:
         """
         if exittype == "create particle":
             # get particle values from input boxes
-            pos = (int(self.input_boxes[0].get_text()), int(self.input_boxes[1].get_text()))
-            velocity = (int(self.input_boxes[3].get_text()), int(self.input_boxes[4].get_text()))
-            mass = int(self.input_boxes[2].get_text())
-            density = int(self.input_boxes[5].get_text())
-
+            pos = (float(self.input_boxes[0].get_text()), float(self.input_boxes[1].get_text()))
+            velocity = (float(self.input_boxes[3].get_text()), float(self.input_boxes[4].get_text()))
+            mass = float(self.input_boxes[2].get_text())
+            density = float(self.input_boxes[5].get_text())
+            
             # add values to the menu particle
-            self.menu_particle.rect.center = pos
+            self.menu_particle.x, self.menu_particle.y = pos
             self.menu_particle.v = pygame.Vector2(velocity)
             self.menu_particle.mass = mass
             self.menu_particle.density = density
