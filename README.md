@@ -18,6 +18,7 @@
   - **ESC** to exit the menu and not create the particle
 - **ESC** to stop displaying particle info
 - **BACKSPACE** to delete the selected/dragged particle
+- **R** to refill simulation with particles
 
 ## Key + Mouse Combos
 
