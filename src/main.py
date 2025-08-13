@@ -19,7 +19,8 @@ class Game:
         # setup
         pygame.init()
         self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
-        pygame.display.set_caption('atomic')
+        pygame.display.set_caption('Gravity Sim')
+        pygame.display.set_icon(pygame.image.load('../assets/icon.ico'))
         self.on = True
         self.clock = pygame.time.Clock()
         self.mouse = pygame.mouse
