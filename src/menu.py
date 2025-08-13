@@ -235,7 +235,7 @@ class ParticleCreationMenu:
             self.menu_particle.in_menu = False
 
             # log particle creation
-            logprinter.print(f"Created a particle @ (x:{truncate_decimal(self.menu_particle.rect.centerx, 1)}, y:{truncate_decimal(self.menu_particle.rect.centery, 1)})."+
+            logprinter.print(f"Created a particle @ (x:{truncate_decimal(self.menu_particle.x, 1)}, y:{truncate_decimal(self.menu_particle.y, 1)})."+
                         " You can view the particle by doing LCTRL+RMB!",
                         type = "info"
             )

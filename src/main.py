@@ -2,9 +2,9 @@ from settings import *
 from cam import Cam
 from particle import *
 from groups import *
-from menu import *
 from utils import *
 from hints import *
+from input import *
 
 
 class Game:
@@ -26,10 +26,7 @@ class Game:
         self.manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
         
         # game state variables
-        self.dragged_particle = None
-        self.info_particle = None
         self.old_world_mouse_pos = pygame.Vector2(self.mouse.get_pos())
-        self.menu_open = False
         self.particle_menu = None
         
         # groups
@@ -40,104 +37,15 @@ class Game:
         # sprites
         self.cam = Cam()
         self.font = pygame.font.Font(None, 20)
+        self.info_particle = None
+        self.dragged_particle = None
         
         # spatial partitioning grid
         self.grid = SpatialGrid(CELL_SIZE)
 
-        # logprinter object
+        # singleton utility objects
         self.logprinter = LogPrinter(self.font, self.logtext, self.logtext)
-    
-    def get_input(self, dt, world_mouse_pos, delta_mouse_pos):
-        """
-        Handle user input for dragging, info display, menu toggling, particle deletion, and particle repopulation.
-        Args:
-            dt (float): Delta time since last frame.
-            world_mouse_pos (Vector2): Mouse position in world coordinates.
-            delta_mouse_pos (Vector2): Change in mouse position.
-        """
-        mouse_presses = self.mouse.get_pressed()
-        key_just_pressed = pygame.key.get_just_pressed()
-        key_held = pygame.key.get_pressed()
-
-        # drag particles with left click
-        if mouse_presses[0]:
-            if self.dragged_particle:
-                # drag the particle
-                self.dragged_particle.rect.center = world_mouse_pos
-                self.dragged_particle.x = world_mouse_pos.x
-                self.dragged_particle.y = world_mouse_pos.y
-                self.dragged_particle.v = delta_mouse_pos / dt
-            else:
-                # find what particle (if any) was dragged and label it as the dragged particle
-                particle = find_particle(self.particles, world_mouse_pos)
-                if self.particle_menu:
-                    if particle == self.particle_menu.menu_particle:
-                        particle = None
-                if particle:
-                    self.dragged_particle = particle
-                    particle.being_dragged = True
-        else:
-            # if the LMB is let go and a particle was previously dragged, it strips that particle of its label.
-            if self.dragged_particle:
-                self.dragged_particle.being_dragged = False
-                if not PARTICLE_SPEED_AFTER_DRAGGING_UNCHANGED:
-                    self.dragged_particle.v = self.dragged_particle.v.normalize() * PARTICLE_SPEED_AFTER_DRAGGING if self.dragged_particle.v else self.dragged_particle.v
-                self.dragged_particle = None
-                
-        # display particle info with right click
-        if mouse_presses[2]:
-            if not self.info_particle:
-                particle = find_particle(self.particles, world_mouse_pos)
-                if particle:
-                    self.info_particle = particle
-                    self.info_particle.info = True
-            if self.info_particle:
-                # RMB + LCTRL = camera follows info particle
-                if key_held[pygame.K_LCTRL]:
-                    particle_pos = pygame.Vector2(self.info_particle.rect.center)
-                    # self.cam.zoom = 1
-                    self.cam.pos = particle_pos
-        
-        # get rid of particle info
-        if key_just_pressed[pygame.K_ESCAPE]:
-            if self.particle_menu:
-                self.particle_menu = None
-                self.particle_menu.exit_menu(self.logprinter, "dont create particle")
-            
-            elif self.info_particle:
-                self.info_particle.info = False
-                self.info_particle = None
-
-        # opens + closes particle creation menu
-        if key_just_pressed[pygame.K_RETURN]:
-            if not self.particle_menu:
-                if len(self.particles) >= MAX_PARTICLES:
-                    self.logprinter.print(f"There are too many particles!", type="error")
-                    return
-                self.particle_menu = ParticleCreationMenu(self.font, self.manager, (self.all_sprites, self.particles), self.particles)
-            else:
-                self.info_particle = self.particle_menu.menu_particle
-                self.info_particle.info = True
-                self.particle_menu.exit_menu(self.logprinter, "create particle")
-                self.particle_menu = None
-        
-        # deletes particle thats being interacted with
-        if key_just_pressed[pygame.K_BACKSPACE]:
-            if self.info_particle:
-                self.info_particle.kill()
-                self.info_particle = None
-            if self.dragged_particle:
-                self.dragged_particle.kill()
-                self.dragged_particle = None
-
-        # repopulates the simulation until there are NUM_PARTICLES particles in it.
-        if key_just_pressed[pygame.K_r]:
-            if len(self.particles) >= NUM_PARTICLES:
-                self.logprinter.print("Theres already enough particles!", type="error")
-                return
-            num_particles_to_make = NUM_PARTICLES - len(self.particles)
-            self.make_particles(num_particles_to_make)
-            self.logprinter.print(f"Made {num_particles_to_make} particles!", type="info")
+        self.input = Input(self)
 
     def draw_particle_info(self):
         """
@@ -148,7 +56,7 @@ class Game:
             particle_info = [
                 "----------[PARTICLE INFO]----------",
                 f"mass = {format(self.info_particle.mass, ",")} kg",
-                f"velocity = {self.info_particle.v} m/s",
+                f"velocity = {self.info_particle.v}",
                 f"density = {self.info_particle.density}",
                 f"radius = {self.info_particle.radius} m",
                 f"position = {truncate_decimal(self.info_particle.rect.centerx, 1), truncate_decimal(self.info_particle.rect.centery, 1)}"
@@ -170,7 +78,6 @@ class Game:
         ]
         draw_info(cam_info, self.font, self.display_surf, "topright")
     
-    # initializes the game with particles
     def make_particles(self, num):
         """
         Create and initialize all particles for the simulation.
@@ -209,7 +116,13 @@ class Game:
         )
 
         pygame.draw.rect(self.display_surf, BORDER_COLOR, screen_rect, border_width if border_width > 0 else 1)
-    
+
+    def pass_in_vars(self):
+        """Passes in certain variables used in both files to avoid runtime errors."""
+        self.info_particle = self.input.info_particle
+        self.dragged_particle = self.input.dragged_particle
+        self.particle_menu = self.input.particle_menu
+
     def run(self):
         """
         Main game loop. Handles updates, drawing, and event processing.
@@ -227,10 +140,8 @@ class Game:
             self.all_sprites.update(dt, self.cam, self.grid)
             self.logtext.update(dt)
 
-            world_mouse_pos = (pygame.Vector2(self.mouse.get_pos()) - self.all_sprites.offset) / self.cam.zoom
-            delta_mouse_pos = world_mouse_pos - self.old_world_mouse_pos
-            self.get_input(dt, world_mouse_pos, delta_mouse_pos)
-            self.old_world_mouse_pos = world_mouse_pos
+            self.input.get_input(dt)
+            self.pass_in_vars()
 
             self.display_surf.fill(BG_COLOR)
             if not self.particle_menu:
