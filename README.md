@@ -22,5 +22,5 @@
 
 ## Key + Mouse Combos
 
-- **SCROLL WHEEL + LEFT CTRL** to change the camera zoom
-- Hold **RIGHT CLICK + LEFT CTRL** to follow the selected particle
+- **LEFT CTRL + SCROLL WHEEL** to change the camera zoom
+- Hold **LEFT CTRL + RIGHT CLICK** to follow the selected particle
