@@ -20,7 +20,7 @@ class Game:
         pygame.init()
         self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption('Gravity Sim')
-        pygame.display.set_icon(pygame.image.load('../assets/icon.ico'))
+        pygame.display.set_icon(pygame.image.load(join('assets', 'icon.ico')))
         self.on = True
         self.clock = pygame.time.Clock()
         self.mouse = pygame.mouse
@@ -29,6 +29,7 @@ class Game:
         # game state variables
         self.old_world_mouse_pos = pygame.Vector2(self.mouse.get_pos())
         self.particle_menu = None
+        self.dt = self.clock.tick(FPS) / 1000
         
         # groups
         self.all_sprites = AllSprites()
@@ -47,6 +48,7 @@ class Game:
         # singleton utility objects
         self.logprinter = LogPrinter(self.font, self.logtext, self.logtext)
         self.input = Input(self)
+        self.accelerator = Accelerator()
 
     def draw_particle_info(self):
         """
@@ -134,14 +136,14 @@ class Game:
             for particle in self.particles:
                 self.grid.add_particle(particle)
         
-            dt = self.clock.tick(FPS) / 1000
+            self.dt = self.clock.tick(FPS) / 1000
 
-            self.cam.update(dt)
+            self.cam.update(self.dt)
             self.event_handler()
-            self.all_sprites.update(dt, self.cam, self.grid)
-            self.logtext.update(dt)
+            self.all_sprites.update(self.dt, self.cam, self.grid)
+            self.logtext.update(self.dt)
 
-            self.input.get_input(dt)
+            self.input.get_input(self.dt)
             self.pass_in_vars()
 
             self.display_surf.fill(BG_COLOR)
@@ -153,7 +155,7 @@ class Game:
                 self.logtext.draw(self.display_surf)
                 display_hints(self.logprinter)
             
-            self.manager.update(dt)
+            self.manager.update(self.dt)
             if self.particle_menu:
                 self.particle_menu.update(self.manager)
                 self.manager.draw_ui(self.display_surf)
@@ -175,16 +177,10 @@ class Game:
             if event.type == pygame.MOUSEWHEEL:
                 # LCTRL+SCROLL = ZOOM
                 if pygame.key.get_pressed()[pygame.K_LCTRL]:
-                    if event.y == 1:
-                        self.cam.zoom = min(self.cam.zoom + 0.1, MAX_ZOOM)
-                    if event.y == -1:
-                        self.cam.zoom = max(self.cam.zoom - 0.1, MIN_ZOOM)
+                    self.cam.zoom = self.accelerator.accelerate(self.cam.zoom, event.y, self.dt, "cam zoom")
                     continue
                 # SCROLL = CAM SPEED
-                if event.y == 1:
-                    self.cam.speed = min(self.cam.speed + SCROLL_WHEEL_SENSITIVITY, MAX_CAM_SPEED)
-                if event.y == -1:
-                    self.cam.speed = max(self.cam.speed - SCROLL_WHEEL_SENSITIVITY, MIN_CAM_SPEED)
+                self.cam.speed = self.accelerator.accelerate(self.cam.speed, event.y, self.dt, "cam speed")
                     
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:

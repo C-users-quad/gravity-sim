@@ -201,3 +201,51 @@ class LogPrinter:
         strings = split_string_every_n_chars(string, MAX_LOG_TEXT_CHAR_WIDTH)
         for string in strings:
             LogText(string, self.font, self.groups, self.logtext, type)
+
+
+class Accelerator:
+    """Accelerates a value using physics equations for smooth incrementation."""
+    def __init__(self):
+        self.velocity = 0.0
+        self.max_velocity = 0.0
+        self.acceleration = 0.0
+        self.accel_when_scrolled = 0.0 # The acceleration you get if theres a scroll event.
+        self.old_event_y = 0
+
+    def accelerate(self, value, event_y, dt, type):
+        """
+        Accelerates a value.
+        Args:
+            dt (float): Time between frames in seconds.
+            value (int or float): Value you wish to accelerate.
+            event_y (int): 1 if scrolled up, -1 if scrolled down.
+            type (string): The type of value you are accelerating.
+        Returns:
+            float or int: The accelerated value.
+        """
+        if type == "cam speed":
+            starting_velocity = 100
+            self.accel_when_scrolled = 100
+            self.max_velocity = 5000
+            min_return = MIN_CAM_SPEED
+            max_return = MAX_CAM_SPEED
+        elif type == "cam zoom":
+            starting_velocity = 0.7
+            self.accel_when_scrolled = 5
+            self.max_velocity = 40
+            min_return = MIN_ZOOM
+            max_return = MAX_ZOOM
+
+        if event_y != self.old_event_y:
+            self.velocity = starting_velocity / dt * event_y
+
+        if abs(self.velocity) < 1e-99:
+            self.velocity = starting_velocity / dt * event_y
+            
+        self.acceleration = event_y * self.accel_when_scrolled 
+        self.velocity += self.acceleration * dt
+        self.velocity = max(-self.max_velocity, min(self.velocity, self.max_velocity)) # clamps velocity
+        self.old_event_y = event_y
+
+        return max(min_return, min(value + self.velocity * dt, max_return))
+    

@@ -4,6 +4,7 @@ import math
 import pygame_gui
 from random import randint
 import numpy as np
+from os.path import join
 
 WINDOW_WIDTH, WINDOW_HEIGHT = 1040, 585
 HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT = 5000, 5000
