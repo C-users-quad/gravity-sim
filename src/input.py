@@ -19,7 +19,7 @@ class Input:
             world_mouse_pos (Vector2): Mouse position in world coordinates.
             particles (pygame.sprite.Group()): All particle sprites.
         """
-        world_mouse_pos = (pygame.Vector2(pygame.mouse.get_pos()) - self.game.all_sprites.offset) / self.game.cam.zoom
+        world_mouse_pos = (pygame.Vector2(pygame.mouse.get_pos()) - self.game.particles.offset) / self.game.cam.zoom
         delta_mouse_pos = world_mouse_pos - self.old_world_mouse_pos
         
         mouse_presses = pygame.mouse.get_pressed()
@@ -60,6 +60,9 @@ class Input:
                     self.info_particle = particle
                     self.info_particle.info = True
             if self.info_particle:
+                if not self.info_particle.alive():
+                    self.info_particle = None
+                    return
                 # RMB + LCTRL = camera follows info particle
                 if key_held[pygame.K_LCTRL]:
                     particle_pos = pygame.Vector2(self.info_particle.rect.center)
@@ -82,7 +85,7 @@ class Input:
                 if len(self.game.particles) >= MAX_PARTICLES:
                     self.game.logprinter.print(f"There are too many particles!", type="error")
                     return
-                self.particle_menu = ParticleCreationMenu(self.game.font, self.game.manager, (self.game.all_sprites, self.game.particles), self.game.particles)
+                self.particle_menu = ParticleCreationMenu(self.game.font, self.game.manager, (self.game.particles, self.game.particles), self.game.particles)
             else:
                 self.info_particle = self.particle_menu.menu_particle
                 self.info_particle.info = True

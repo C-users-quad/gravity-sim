@@ -9,7 +9,7 @@ from input import *
 
 class Game:
     """
-    Main game class for the gravity simulation. Handles initialization, input,
+    Main game class for the gravity simulation. Handles initialization,
     rendering, game loop, and event management.
     """
     def __init__(self):
@@ -20,7 +20,7 @@ class Game:
         pygame.init()
         self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption('Gravity Sim')
-        pygame.display.set_icon(pygame.image.load(join('assets', 'icon.ico')))
+        # pygame.display.set_icon(pygame.image.load(join('assets', 'icon.ico')))
         self.on = True
         self.clock = pygame.time.Clock()
         self.mouse = pygame.mouse
@@ -32,8 +32,7 @@ class Game:
         self.dt = self.clock.tick(FPS) / 1000
         
         # groups
-        self.all_sprites = AllSprites()
-        self.particles = pygame.sprite.Group()
+        self.particles = ParticleDrawing()
         self.logtext = pygame.sprite.Group()
         
         # sprites
@@ -42,8 +41,8 @@ class Game:
         self.info_particle = None
         self.dragged_particle = None
         
-        # spatial partitioning grid
-        self.grid = SpatialGrid(CELL_SIZE)
+        # quadtree (lag killer)
+        self.quadtree = QuadTree(pygame.FRect(-HALF_WORLD_WIDTH, -HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH * 2, HALF_WORLD_HEIGHT * 2), 8, self.cam)
 
         # singleton utility objects
         self.logprinter = LogPrinter(self.font, self.logtext, self.logtext)
@@ -60,8 +59,8 @@ class Game:
                 "----------[PARTICLE INFO]----------",
                 f"mass = {format(self.info_particle.mass, ",")} kg",
                 f"velocity = {self.info_particle.v}",
-                f"density = {self.info_particle.density}",
-                f"radius = {self.info_particle.radius} m",
+                f"density = {truncate_decimal(self.info_particle.density, 1)}",
+                f"radius = {truncate_decimal(self.info_particle.radius, 1)} m",
                 f"position = {truncate_decimal(self.info_particle.rect.centerx, 1), truncate_decimal(self.info_particle.rect.centery, 1)}"
             ]
             draw_info(particle_info, self.font, self.display_surf, "topleft")
@@ -75,25 +74,25 @@ class Game:
         cam_info = [
             "----------[CAM INFO]----------",
             f"pos = {truncate_decimal(self.cam.pos.x, 1), truncate_decimal(self.cam.pos.y, 1)}",
-            f"speed = {self.cam.speed}",
+            f"speed = {truncate_decimal(self.cam.speed, 1)}",
             f"zoom = {truncate_decimal(self.cam.zoom, 1)}x",
             f"fps = {truncate_decimal(self.clock.get_fps(), 0)}"
         ]
         draw_info(cam_info, self.font, self.display_surf, "topright")
     
-    def make_particles(self, num):
+    def make_particles(self, num=None):
         """
         Create and initialize all particles for the simulation.
         """
-        for _ in range(num):
+        for _ in range(NUM_PARTICLES if num == None else num):
             args = (
                 randint(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH),   # x
                 randint(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT), # y
-                randint(0, MAX_STARTING_VELOCITY),  # vx
-                randint(0, MAX_STARTING_VELOCITY),  # vy
+                choice([-1, 1]) * randint(1, MAX_STARTING_VELOCITY),  # vx
+                choice([-1, 1]) * randint(1, MAX_STARTING_VELOCITY),  # vy
                 randint(1, MAX_STARTING_MASS),  # mass
                 randint(1, MAX_STARTING_DENSITY),   # density
-                (self.all_sprites, self.particles), # groups
+                self.particles, # groups
                 self.particles  # particles
             )
             Particle(*args)
@@ -112,8 +111,8 @@ class Game:
         # Apply cam transformation:
         win_w, win_h = self.display_surf.get_size()
         screen_rect = pygame.FRect(
-            (rect.x - self.cam.pos.x) * self.cam.zoom + win_w // 2,
-            (rect.y - self.cam.pos.y) * self.cam.zoom + win_h // 2,
+            (rect.x - self.cam.pos.x) * self.cam.zoom + win_w / 2,
+            (rect.y - self.cam.pos.y) * self.cam.zoom + win_h / 2,
             rect.width * self.cam.zoom,
             rect.height * self.cam.zoom
         )
@@ -130,34 +129,47 @@ class Game:
         """
         Main game loop. Handles updates, drawing, and event processing.
         """
-        self.make_particles(NUM_PARTICLES)
+        self.make_particles()
         while self.on:
-            self.grid.clear_grid()
-            for particle in self.particles:
-                self.grid.add_particle(particle)
-        
+            self.quadtree.clear()
             self.dt = self.clock.tick(FPS) / 1000
 
-            self.cam.update(self.dt)
-            self.event_handler()
-            self.all_sprites.update(self.dt, self.cam, self.grid)
-            self.logtext.update(self.dt)
+            percentiles = calculate_color_bins(self.particles)
+            particles = find_particles_in_render_distance(self.particles, self.cam)
 
+            update_particles(particles, self.dt, self.cam, percentiles)
+
+            for particle in self.particles:
+                if not particle.is_within_render_distance(self.cam):
+                    continue
+                self.quadtree.insert(particle)
+
+            update_particles(particles, self.dt, self.cam, percentiles, self.quadtree)
+
+            self.logtext.update(self.dt)
             self.input.get_input(self.dt)
+            self.event_handler()
+            self.cam.update(self.dt)
+
             self.pass_in_vars()
 
             self.display_surf.fill(BG_COLOR)
             if not self.particle_menu:
-                self.all_sprites.draw(self.cam)
+                self.particles.draw(self.cam)
+                # # Draw lines between neighboring particles
+                # for particle in self.particles:
+                #     if particle.alive():
+                #         particle.draw_neighbor_lines(self.display_surf, self.cam, self.quadtree)
+                self.quadtree.visualize(self.cam.zoom, self.particles.offset)
                 self.draw_cam_info()
                 self.draw_world_border()
                 self.draw_particle_info()
                 self.logtext.draw(self.display_surf)
                 display_hints(self.logprinter)
-            
+
             self.manager.update(self.dt)
             if self.particle_menu:
-                self.particle_menu.update(self.manager)
+                self.particle_menu.update(self.manager, percentiles)
                 self.manager.draw_ui(self.display_surf)
 
             pygame.display.update()

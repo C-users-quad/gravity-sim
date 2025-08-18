@@ -131,7 +131,7 @@ class ParticleCreationMenu:
             # border
             pygame.draw.rect(self.display, BORDER_COLOR, bg_rect, 1, 2)
             
-    def draw_particle(self):
+    def draw_particle(self, percentiles):
         """
         Draw a preview of the particle with current input values.
         """
@@ -150,7 +150,7 @@ class ParticleCreationMenu:
         self.menu_particle.density = density
         
         self.menu_particle.radius = calculate_radius(mass, density)
-        self.menu_particle.update_color()
+        self.menu_particle.update_color(percentiles)
         self.menu_particle.update_sprite()
 
         self.menu_particle.rect.center = (win_w / 2, win_h / 2)
@@ -253,7 +253,7 @@ class ParticleCreationMenu:
         rect = self.display.get_rect().inflate(-20, -20)
         pygame.draw.rect(self.display, BORDER_COLOR, rect, 5, 5)
 
-    def update(self, ui_manager):
+    def update(self, ui_manager, percentiles):
         """
         Update the menu UI, validate input, draw the particle preview and border.
         """
@@ -261,5 +261,5 @@ class ParticleCreationMenu:
         self.update_points()
         self.draw_labels()
         self.limit_values()
-        self.draw_particle()
+        self.draw_particle(percentiles)
         self.draw_border()

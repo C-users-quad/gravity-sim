@@ -1,8 +1,8 @@
 from settings import *
 
-class AllSprites(pygame.sprite.Group):
+class ParticleDrawing(pygame.sprite.Group):
     """
-    Custom sprite group for managing and drawing all sprites with camera offset and zoom.
+    Custom sprite group for managing and drawing particles with camera offset and zoom.
     """
     def __init__(self):
         """
@@ -14,7 +14,7 @@ class AllSprites(pygame.sprite.Group):
 
     def draw(self, cam):
         """
-        Draw all sprites in the group, applying camera offset and zoom.
+        Draw all particles in the group, applying camera offset and zoom.
         Sprites being dragged are drawn on top of others.
         Args:
             cam: Camera object for position and zoom.
@@ -33,6 +33,8 @@ class AllSprites(pygame.sprite.Group):
         
         for layer in [other_particles, dragged_particle]:
             for sprite in layer:
+                if not sprite.alive():
+                    continue
                 if hasattr(sprite, "is_within_render_distance") and not sprite.is_within_render_distance(cam):
                     continue
                 
