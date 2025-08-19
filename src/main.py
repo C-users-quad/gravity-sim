@@ -30,7 +30,7 @@ class Game:
         self.old_world_mouse_pos = pygame.Vector2(self.mouse.get_pos())
         self.particle_menu = None
         self.dt = self.clock.tick(FPS) / 1000
-        
+
         # groups
         self.particles = ParticleDrawing()
         self.logtext = pygame.sprite.Group()

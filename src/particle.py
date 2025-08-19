@@ -1,11 +1,17 @@
 from settings import *
 from utils import *
 
-_cached_particle_surfs = {} # key = (radius, color), value = pygame.Surface()
+_cached_particle_surfs: dict[tuple, pygame.Surface] = {} # key = (radius, color), value = pygame.Surface()
 
-def surf_lookup(radius: float, color: tuple, info: bool) -> pygame.Surface:
-    if info:
-        return
+def surf_lookup(radius: float, color: tuple) -> list[pygame.Surface]:
+    """
+    Looks up and caches surfaces for particles.
+    Args:
+        radius (float): the radius of your particle.
+        color (ColorLike): the color of your particle
+    Returns:
+        particle_surf (pygame.Surface): the surface for the particle requested
+    """
     key = (radius, color)
     if key not in _cached_particle_surfs:
         surf = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA).convert_alpha()
@@ -13,11 +19,13 @@ def surf_lookup(radius: float, color: tuple, info: bool) -> pygame.Surface:
         _cached_particle_surfs[key] = surf
     return _cached_particle_surfs[key]
 
+
 class Particle(pygame.sprite.Sprite):
     """
     Represents a particle in the gravity simulation. Handles physics, rendering, and interactions.
     """
-    def __init__(self, x, y, vx, vy, mass, density, groups, particles):
+    def __init__(self, x: float, y: float, vx: float, vy: float, mass: float, 
+                 density: float, groups: list[pygame.sprite.Group], particles: pygame.sprite.Group) -> None:
         """
         Initialize a particle with position, velocity, mass, density, and groups.
         Args:
@@ -78,7 +86,8 @@ class Particle(pygame.sprite.Sprite):
         Update the particle's image and rect based on its radius and color.
         """
         self.radius = calculate_radius(self.mass, self.density)
-        self.image = surf_lookup(self.radius, self.color, self.info)
+        image = surf_lookup(self.radius, self.color)
+        self.image = image.copy()
         self.rect = self.image.get_frect(center = (self.x, self.y))
 
     def draw_highlight(self, cam):

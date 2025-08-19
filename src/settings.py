@@ -5,9 +5,10 @@ import pygame_gui
 from random import randint, choice, uniform
 import numpy as np
 from os.path import join
+from typing import Literal
 
 WINDOW_WIDTH, WINDOW_HEIGHT = 1040, 585
-HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT = 10000, 10000
+HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT = 20000, 20000
 BORDER_WIDTH = 30
 # CELL_SIZE = 150
 
