@@ -1,7 +1,11 @@
 from settings import *
 from chatlog import LogText
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from particle import Particle
+    from cam import Cam
 
-def combined_masses(p1, p2):
+def combined_masses(p1: "Particle", p2: "Particle") -> float:
     """
     Return the sum of the masses of two particles.
     Args:
@@ -11,7 +15,7 @@ def combined_masses(p1, p2):
     """
     return p1.mass + p2.mass
 
-def velocity_of_combined_particles(p1, p2):
+def velocity_of_combined_particles(p1: "Particle", p2: "Particle") -> pygame.Vector2:
     """
     Calculate the velocity of two combined particles using conservation of momentum.
     Args:
@@ -21,7 +25,7 @@ def velocity_of_combined_particles(p1, p2):
     """
     return ((p1.mass * p1.v) + (p2.mass * p2.v)) / (p1.mass + p2.mass)
 
-def combined_density(p1, p2):
+def combined_density(p1: "Particle", p2: "Particle") -> float:
     """
     Calculates the density of two combined particles.
     Args:
@@ -41,7 +45,7 @@ def combined_density(p1, p2):
     max_density = 1000
     return max(min_density, min(density, max_density))
 
-def draw_info(infos, font, display, corner):
+def draw_info(infos: list[str], font: pygame.Font, display: pygame.display, corner: Literal["topleft", "topright"]) -> None:
     """
     Draw a list of info strings on the display surface at the specified corner.
     Args:
@@ -79,7 +83,7 @@ def draw_info(infos, font, display, corner):
         display.blit(text_surf, text_rect)
         y_offset += rect_height + spacing
         
-def truncate_decimal(decimal, decimal_places):
+def truncate_decimal(decimal: float, decimal_places: int) -> float:
     """
     Truncate a decimal number to a fixed number of decimal places.
     Args:
@@ -125,13 +129,13 @@ class QuadTree:
         self.children = []
         self.divided = False
 
-    def insert(self, particle) -> None:
+    def insert(self, particle: "Particle") -> None:
         """
         Inserts a particle into the Quadtree.
         Args:
             particle (Particle): The particle you wish to insert.
         """
-        if not self.boundary.contains(particle.rect):
+        if not self.boundary.collidepoint(particle.rect.center):
             return
 
         if len(self.particles_in_node) < self.capacity:
@@ -170,19 +174,19 @@ class QuadTree:
         for particle in old_particles:
             self.place_particle(particle)
 
-    def place_particle(self, particle):
+    def place_particle(self, particle: "Particle"):
         """
         Recursively looks through the Quadtree to find the node the particle belongs in.
         Args:
             particle (Particle): the particle you wish to place into the Quadtree.
         """
         for node in self.children:
-            if node.boundary.contains(particle.rect):
+            if node.boundary.collidepoint(particle.rect.center):
                 node.insert(particle)
                 return
         self.particles_in_node.append(particle)
 
-    def query_circle(self, particle) -> list[object]:
+    def query_circle(self, particle: "Particle") -> list["Particle"]:
         """
         Queries a circular area around the particle in order to find what particles (or so-called "neighbors") it may interact with.
         Args:
@@ -194,7 +198,7 @@ class QuadTree:
         radius = particle.radius + MAX_RADIUS
         found_particles = []
 
-        if not self.boundary.colliderect(particle.rect):
+        if not self.boundary.collidepoint(particle.rect.center):
             return found_particles
         
         for p in self.particles_in_node:
@@ -212,7 +216,7 @@ class QuadTree:
 
         return found_particles
 
-    def draw_line(self, p1, p2, zoom, offset):
+    def draw_line(self, p1: "Particle", p2: "Particle", zoom: float, offset: pygame.Vector2):
         pygame.draw.line(
             pygame.display.get_surface(), 
             "white", 
@@ -221,7 +225,7 @@ class QuadTree:
             5
         )
 
-    def visualize(self, zoom: float | int, offset: pygame.math.Vector2) -> None:
+    def visualize(self, zoom: float, offset: pygame.Vector2) -> None:
         """
         Draws a highlight on the edges of a Quadtree node.
         Args:
@@ -246,10 +250,10 @@ class QuadTree:
 
 class SpatialGrid:
     """
-    DEPRECATED...
+    DEPRECATED...USE QUADTREE.
     Spatial partitioning grid for efficient neighbor lookup in particle simulations.
     """
-    def __init__(self, cell_size):
+    def __init__(self, cell_size: float) -> None:
         """
         Initialize the grid with a given cell size.
         Args:
@@ -258,13 +262,13 @@ class SpatialGrid:
         self.grid = {}
         self.cell_size = cell_size
 
-    def clear_grid(self):
+    def clear_grid(self) -> None:
         """
         Clear all cells in the grid.
         """
         self.grid = {}
     
-    def draw_lines_to_neighbors(self, particle, zoom, offset):
+    def draw_lines_to_neighbors(self, particle: "Particle", zoom: float, offset: pygame.Vector2) -> None:
         """
         Draws lines from one particle's center to its neighbors' centers.
         Args:
@@ -284,7 +288,7 @@ class SpatialGrid:
             pygame.draw.line(*args)
 
     # adds a particle to a cell. if cell does not exist, it creates a cell.
-    def add_particle(self, particle):
+    def add_particle(self, particle: "Particle") -> None:
         """
         Add a particle to the appropriate cell in the grid.
         Args:
@@ -295,7 +299,7 @@ class SpatialGrid:
             self.grid[cell] = []
         self.grid[cell].append(particle)
 
-    def get_cell(self, x, y):
+    def get_cell(self, x: float, y: float) -> tuple[int, int]:
         """
         Get the cell coordinates for a given position.
         Args:
@@ -306,7 +310,7 @@ class SpatialGrid:
         """
         return int(x // self.cell_size), int(y // self.cell_size)
 
-    def get_neighbors(self, particle):
+    def get_neighbors(self, particle: "Particle") -> list["Particle"]:
         """
         Get neighboring particles from adjacent cells, and particles in the same cell as particle.
         Args:
@@ -328,7 +332,7 @@ class SpatialGrid:
 
         return neighbors
     
-def find_particle(particles, mouse_pos):
+def find_particle(particles: "Particle", mouse_pos: tuple[float, float]) -> "Particle" | None:
     """
     Find the first particle at the given mouse position.
     Args:
@@ -341,7 +345,7 @@ def find_particle(particles, mouse_pos):
         if particle.rect.collidepoint(mouse_pos):    
             return particle
         
-def calculate_radius(mass, density):
+def calculate_radius(mass: float, density: float) -> float:
     """
     Calculate the radius of a particle based on its mass and density.
     Args:
@@ -360,7 +364,7 @@ def calculate_radius(mass, density):
     radius = math.sqrt(area / math.pi)
     return max(MIN_RADIUS, min(radius, MAX_RADIUS))
 
-def split_string_every_n_chars(string, n):
+def split_string_every_n_chars(string: str, n: int) -> list[str]:
     """
     Split a string into chunks of n characters.
     Args:
@@ -381,12 +385,12 @@ class LogPrinter:
         logtext: Log text group.
         type (str): Type of message ('normal', 'error').
     """
-    def __init__(self, font, groups, logtext):
+    def __init__(self, font: pygame.Font, groups: list[pygame.sprite.Group], logtext: pygame.sprite.Group) -> None:
         self.font = font
         self.groups = groups
         self.logtext = logtext
 
-    def add_prefix(self, string, type):
+    def add_prefix(self, string: str, type: Literal["normal", "error", "hint", "info"]) -> str:
         if type == "normal":
             return string
         elif type == "error":
@@ -396,7 +400,7 @@ class LogPrinter:
         elif type == "info":
             return "[INFO]" + " " + string
 
-    def print(self, string, type="normal"):
+    def print(self, string: str, type: Literal["normal", "error", "hint", "info"] = "normal") -> None:
         string = self.add_prefix(string, type)
         strings = split_string_every_n_chars(string, MAX_LOG_TEXT_CHAR_WIDTH)
         for string in strings:
@@ -405,23 +409,23 @@ class LogPrinter:
 
 class Accelerator:
     """Accelerates a value using physics equations for smooth incrementation."""
-    def __init__(self):
+    def __init__(self) -> None:
         self.velocity = 0.0
         self.max_velocity = 0.0
         self.acceleration = 0.0
         self.accel_when_scrolled = 0.0 # The acceleration you get if theres a scroll event.
         self.old_event_y = 0
 
-    def accelerate(self, value, event_y, dt, type):
+    def accelerate(self, value: float, event_y: Literal[-1, 1], dt: float, type: Literal["cam speed", "cam zoom"]) -> float:
         """
         Accelerates a value.
         Args:
             dt (float): Time between frames in seconds.
-            value (int or float): Value you wish to accelerate.
+            value (float): Value you wish to accelerate.
             event_y (int): 1 if scrolled up, -1 if scrolled down.
             type (string): The type of value you are accelerating.
         Returns:
-            float or int: The accelerated value.
+            float: The accelerated value.
         """
         if type == "cam speed":
             starting_velocity = 100 * (max(HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH) / 5000)
@@ -449,18 +453,18 @@ class Accelerator:
 
         return max(min_return, min(value + self.velocity * dt, max_return))
     
-def calculate_color_bins(particles):
+def calculate_color_bins(particles: pygame.sprite.Group) -> np.ndarray:
     if len(particles) < 1:
         return
     masses = np.array([p.mass for p in particles])
     percentiles = np.percentile(masses, np.linspace(0, 100, 11))  # 10 intervals
     return percentiles
     
-def update_particles(particles, dt, cam, percentiles, quadtree=None):
+def update_particles(particles: list["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, quadtree: QuadTree=None) -> None:
     for i, particle in enumerate(particles):
         particle.update(dt, cam, percentiles, quadtree)
 
-def find_particles_in_render_distance(particles, cam):
+def find_particles_in_render_distance(particles: list["Particle"], cam: "Cam") -> list["Particle"]:
     particles_in_render = []
     for particle in particles:
         if particle.is_within_render_distance(cam):
