@@ -65,15 +65,14 @@ class Input:
                     return
                 # RMB + LCTRL = camera follows info particle
                 if key_held[pygame.K_LCTRL]:
-                    particle_pos = pygame.Vector2(self.info_particle.rect.center)
-                    # self.cam.zoom = 1
-                    self.game.cam.pos = particle_pos
+                    particle_pos = self.info_particle.rect.center
+                    self.game.cam.set_pos(particle_pos)
         
         # get rid of particle info
         if key_just_pressed[pygame.K_ESCAPE]:
             if self.particle_menu:
                 self.particle_menu = None
-                self.particle_menu.exit_menu(self.logprinter, "dont create particle")
+                self.particle_menu.exit_menu(self.logprinter, "dont create particle", self.game.cam)
             
             elif self.info_particle:
                 self.info_particle.info = False
@@ -89,7 +88,7 @@ class Input:
             else:
                 self.info_particle = self.particle_menu.menu_particle
                 self.info_particle.info = True
-                self.particle_menu.exit_menu(self.game.logprinter, "create particle")
+                self.particle_menu.exit_menu(self.game.logprinter, "create particle", self.game.cam)
                 self.particle_menu = None
         
         # deletes particle thats being interacted with

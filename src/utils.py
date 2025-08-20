@@ -105,7 +105,7 @@ class QuadTree:
             level (int): The level that the node rests at. The root node's level is 0.
             maxlevel (int): The maximum level a node can be.
     """
-    def __init__(self, boundary: pygame.FRect | pygame.Rect, capacity: int, cam: object, level: int=0, maxlevel: int=6) -> None:
+    def __init__(self, boundary: pygame.FRect | pygame.Rect, capacity: int, cam: object, level: int=0, maxlevel: int=7) -> None:
         # self.boundary = (left, top, length, width) of bounding rect.
         self.boundary = boundary
         self.capacity = capacity
@@ -195,10 +195,11 @@ class QuadTree:
             found_particles[Particle]: A list of all the neighbors your queried particle may interact with.
         """
         center = (particle.x, particle.y)
-        radius = particle.radius + MAX_RADIUS
+        radius = particle.radius + MAX_RADIUS * 2
+        query_rect = pygame.FRect(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
         found_particles = []
 
-        if not self.boundary.collidepoint(particle.rect.center):
+        if not self.boundary.colliderect(particle.rect):
             return found_particles
         
         for p in self.particles_in_node:
@@ -332,7 +333,7 @@ class SpatialGrid:
 
         return neighbors
     
-def find_particle(particles: "Particle", mouse_pos: tuple[float, float]) -> "Particle" | None:
+def find_particle(particles: list["Particle"], mouse_pos: tuple[float, float]) -> "Particle | None":
     """
     Find the first particle at the given mouse position.
     Args:
@@ -453,11 +454,22 @@ class Accelerator:
 
         return max(min_return, min(value + self.velocity * dt, max_return))
     
-def calculate_color_bins(particles: pygame.sprite.Group) -> np.ndarray:
+_cached_color_bins = None
+
+def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np.ndarray:
+    global _cached_color_bins
+
+    skip_frames = 10 # [int] frames are skipped for calculations
+    if frame_count % skip_frames != 0:
+        if _cached_color_bins is not None:
+            return _cached_color_bins
+        
     if len(particles) < 1:
         return
+    
     masses = np.array([p.mass for p in particles])
     percentiles = np.percentile(masses, np.linspace(0, 100, 11))  # 10 intervals
+    _cached_color_bins = percentiles
     return percentiles
     
 def update_particles(particles: list["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, quadtree: QuadTree=None) -> None:

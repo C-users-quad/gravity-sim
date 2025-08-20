@@ -42,7 +42,7 @@ class Game:
         self.dragged_particle = None
         
         # quadtree (lag killer)
-        self.quadtree = QuadTree(pygame.FRect(-HALF_WORLD_WIDTH, -HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH * 2, HALF_WORLD_HEIGHT * 2), 8, self.cam)
+        self.quadtree = QuadTree(pygame.FRect(-HALF_WORLD_WIDTH, -HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH * 2, HALF_WORLD_HEIGHT * 2), 1, self.cam)
 
         # singleton utility objects
         self.logprinter = LogPrinter(self.font, self.logtext, self.logtext)
@@ -130,18 +130,16 @@ class Game:
         Main game loop. Handles updates, drawing, and event processing.
         """
         self.make_particles()
+        frame_count = 0
         while self.on:
+            frame_count += 1
             self.quadtree.clear()
             self.dt = self.clock.tick(FPS) / 1000
 
-            percentiles = calculate_color_bins(self.particles)
+            percentiles = calculate_color_bins(self.particles, frame_count)
             particles = find_particles_in_render_distance(self.particles, self.cam)
 
-            update_particles(particles, self.dt, self.cam, percentiles)
-
-            for particle in self.particles:
-                if not particle.is_within_render_distance(self.cam):
-                    continue
+            for particle in particles:
                 self.quadtree.insert(particle)
 
             update_particles(particles, self.dt, self.cam, percentiles, self.quadtree)
@@ -155,12 +153,12 @@ class Game:
 
             self.display_surf.fill(BG_COLOR)
             if not self.particle_menu:
-                self.particles.draw(self.cam)
-                # # Draw lines between neighboring particles
-                # for particle in self.particles:
-                #     if particle.alive():
-                #         particle.draw_neighbor_lines(self.display_surf, self.cam, self.quadtree)
                 self.quadtree.visualize(self.cam.zoom, self.particles.offset)
+                self.particles.draw(self.cam)
+                # Draw lines between neighboring particles [DEBUG]
+                for particle in particles:
+                    if particle.alive():
+                        particle.draw_neighbor_lines(self.display_surf, self.cam, self.quadtree)
                 self.draw_cam_info()
                 self.draw_world_border()
                 self.draw_particle_info()

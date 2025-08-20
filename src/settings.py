@@ -5,14 +5,14 @@ import pygame_gui
 from random import randint, choice, uniform
 import numpy as np
 from os.path import join
-from typing import Literal
+from typing import Literal, Sequence
 
 WINDOW_WIDTH, WINDOW_HEIGHT = 1040, 585
-HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT = 20000, 20000
+HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT = 25000, 25000
 BORDER_WIDTH = 30
 # CELL_SIZE = 150
 
-NUM_PARTICLES = 5000
+NUM_PARTICLES = 10000
 MAX_PARTICLES = 10000
 
 G = 10
@@ -30,7 +30,7 @@ INFO_RECT_PADDING = 5
 INFO_RECT_COLOR = (16, 17, 18, 200)
 
 MIN_CAM_SPEED, MAX_CAM_SPEED = 150, 2500
-MIN_ZOOM, MAX_ZOOM = 0.1, 2
+MIN_ZOOM, MAX_ZOOM = 0.1 if NUM_PARTICLES <= 2500 else 0.3, 2
 SCROLL_WHEEL_SENSITIVITY = 50
 
 BG_COLOR = '#17171a'

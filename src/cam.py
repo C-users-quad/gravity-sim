@@ -62,7 +62,10 @@ class Cam:
         
         self.pos.y += self.direction.y * self.speed * dt
         self.world_clamp("vertical")
-        
+    
+    def set_pos(self, pos: Sequence[float]):
+        self.pos = pygame.Vector2(pos[0], pos[1])
+
     def update(self, dt):
         """
         Update the camera each frame: process input and move.

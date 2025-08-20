@@ -214,7 +214,7 @@ class ParticleCreationMenu:
             if text and not text[0] == '-':
                 self.input_boxes[5].set_text('')
 
-    def exit_menu(self, logprinter, exittype):
+    def exit_menu(self, logprinter, exittype, cam):
         """
         Apply the input values to the menu particle and exit the menu.
         """
@@ -245,7 +245,9 @@ class ParticleCreationMenu:
 
         for input_box in self.input_boxes:
             input_box.kill()
-    
+
+        cam.set_pos(pos)
+
     def draw_border(self):
         """
         Draw a border around the menu area.
