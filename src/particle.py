@@ -242,7 +242,7 @@ class Particle(pygame.sprite.Sprite):
         for pseudo_particle in quadtree.query_bh(self):
             self.apply_forces(pseudo_particle, dt)
         for other in grid.get_neighbors(self):
-            if other is self or not other.alive():
+            if other is self or not other.alive() or other.being_dragged:
                 continue
             dx = other.x - self.x
             dy = other.y - self.y

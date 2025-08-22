@@ -134,7 +134,7 @@ class Game:
         frame_count = 0
         while self.on:
             frame_count += 1
-            update_start = time.perf_counter()
+            # update_start = time.perf_counter()
             self.quadtree.clear()
             self.grid.clear_grid()
             self.dt = self.clock.tick(FPS) / 1000
@@ -155,11 +155,11 @@ class Game:
             self.cam.update(self.dt)
 
             self.pass_in_vars()
-            update_end = time.perf_counter()
+            # update_end = time.perf_counter()
 
             self.display_surf.fill(BG_COLOR)
             if not self.particle_menu:
-                draw_start = time.perf_counter()
+                # draw_start = time.perf_counter()
                 self.quadtree.visualize(self.cam.zoom, self.particles.offset)
                 self.particles.draw(self.cam)
                 # Draw lines between neighboring particles [DEBUG]
@@ -171,16 +171,16 @@ class Game:
                 self.draw_particle_info()
                 self.logtext.draw(self.display_surf)
                 display_hints(self.logprinter)
-                draw_end = time.perf_counter()
+                # draw_end = time.perf_counter()
 
             self.manager.update(self.dt)
             if self.particle_menu:
                 self.particle_menu.update(self.manager, percentiles)
                 self.manager.draw_ui(self.display_surf)
 
-            print(f"updating takes {update_end - update_start}s.")
-            print(f"drawing takes {draw_end - draw_start}s.")
-            print(f"particles rendered: {len(particles)}")
+            # print(f"updating takes {update_end - update_start}s.")
+            # print(f"drawing takes {draw_end - draw_start}s.")
+            # print(f"particles rendered: {len(particles)}")
             
             pygame.display.update()
             
