@@ -1,7 +1,7 @@
 from settings import *
 from cam import Cam
-from particle import *
-from groups import *
+from particle import Particle
+from groups import ParticleDrawing
 from utils import *
 from hints import *
 from input import *
@@ -20,7 +20,7 @@ class Game:
         pygame.init()
         self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption('Gravity Sim')
-        # pygame.display.set_icon(pygame.image.load(join('assets', 'icon.ico')))
+        pygame.display.set_icon(pygame.image.load(join('assets', 'icon.ico')))
         self.on = True
         self.clock = pygame.time.Clock()
         self.mouse = pygame.mouse
@@ -41,8 +41,9 @@ class Game:
         self.info_particle = None
         self.dragged_particle = None
         
-        # quadtree (lag killer)
+        # spatial partitioning tools (lag killers)
         self.quadtree = QuadTree(pygame.FRect(-HALF_WORLD_WIDTH, -HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH * 2, HALF_WORLD_HEIGHT * 2), 1, self.cam)
+        self.grid = SpatialGrid()
 
         # singleton utility objects
         self.logprinter = LogPrinter(self.font, self.logtext, self.logtext)
@@ -133,7 +134,9 @@ class Game:
         frame_count = 0
         while self.on:
             frame_count += 1
+            update_start = time.perf_counter()
             self.quadtree.clear()
+            self.grid.clear_grid()
             self.dt = self.clock.tick(FPS) / 1000
 
             percentiles = calculate_color_bins(self.particles, frame_count)
@@ -141,8 +144,10 @@ class Game:
 
             for particle in particles:
                 self.quadtree.insert(particle)
+                self.grid.add_particle(particle)
+            self.quadtree.calculate_CoM()
 
-            update_particles(particles, self.dt, self.cam, percentiles, self.quadtree)
+            update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree)
 
             self.logtext.update(self.dt)
             self.input.get_input(self.dt)
@@ -150,9 +155,11 @@ class Game:
             self.cam.update(self.dt)
 
             self.pass_in_vars()
+            update_end = time.perf_counter()
 
             self.display_surf.fill(BG_COLOR)
             if not self.particle_menu:
+                draw_start = time.perf_counter()
                 self.quadtree.visualize(self.cam.zoom, self.particles.offset)
                 self.particles.draw(self.cam)
                 # Draw lines between neighboring particles [DEBUG]
@@ -164,12 +171,17 @@ class Game:
                 self.draw_particle_info()
                 self.logtext.draw(self.display_surf)
                 display_hints(self.logprinter)
+                draw_end = time.perf_counter()
 
             self.manager.update(self.dt)
             if self.particle_menu:
                 self.particle_menu.update(self.manager, percentiles)
                 self.manager.draw_ui(self.display_surf)
 
+            print(f"updating takes {update_end - update_start}s.")
+            print(f"drawing takes {draw_end - draw_start}s.")
+            print(f"particles rendered: {len(particles)}")
+            
             pygame.display.update()
             
     def event_handler(self):

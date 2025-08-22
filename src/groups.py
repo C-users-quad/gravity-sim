@@ -28,8 +28,6 @@ class ParticleDrawing(pygame.sprite.Group):
         
         other_particles = [particle for particle in self if hasattr(particle, 'being_dragged') and particle.being_dragged == False]
         dragged_particle = [particle for particle in self if hasattr(particle, 'being_dragged') and particle.being_dragged ==  True]
-    
-        other_particles.sort(key = lambda particle: particle.mass)
         
         for layer in [other_particles, dragged_particle]:
             for sprite in layer:

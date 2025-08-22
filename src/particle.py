@@ -14,7 +14,7 @@ def surf_lookup(radius: int, color: tuple) -> list[pygame.Surface]:
     """
     key = (radius, color)
     if key not in _cached_particle_surfs:
-        surf = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA).convert_alpha()
+        surf = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
         pygame.draw.circle(surf, color, (radius, radius), radius)
         _cached_particle_surfs[key] = surf
     return _cached_particle_surfs[key]
@@ -149,22 +149,21 @@ class Particle(pygame.sprite.Sprite):
         if (0 <= t1 <= 1) or (0 <= t2 <= 1):
             self.combine_with(other)
 
-    def apply_forces(self, other, dt):
+    def apply_forces(self, pseudo_particle: tuple[float, float, float], dt: float) -> None:
         """
         Apply gravitational forces from neighboring particles.
         Args:
+            pseudo_particle (tuple[float, float, float]): a pseudo particle represented as an (x, y, mass) tuple.
             dt (float): Delta time since last frame.
         """
-        dx = other.x - self.x
-        dy = other.y - self.y
-        distance = math.hypot(dx, dy)
+        dx = pseudo_particle[0] - self.x
+        dy = pseudo_particle[1] - self.y
+        d2 = dx**2 + dy**2
 
-        if distance < self.radius + other.radius:
-            self.combine_with(other)
-        if distance > 0:
-            direction = pygame.Vector2(dx, dy).normalize()
-            force = G * self.mass * other.mass / distance ** 2
-            self.a += (direction * force / self.mass) * dt
+        if d2 > 0:
+            direction = pygame.Vector2(dx, dy)
+            force = G * self.mass * pseudo_particle[2] / d2
+            self.a += direction * (force / math.sqrt(d2) / self.mass) * dt
 
     def combine_with(self, other):
         """
@@ -224,7 +223,7 @@ class Particle(pygame.sprite.Sprite):
                 self.v.x *= -1
                 self.x = self.rect.centerx
     
-    def update_position(self, dt: float, quadtree: QuadTree) -> None:
+    def update_position(self, dt: float, quadtree: QuadTree, grid: SpatialGrid) -> None:
         """
         Update the particle's position based on velocity and handle window collisions.
         Args:
@@ -240,9 +239,17 @@ class Particle(pygame.sprite.Sprite):
         old_a = self.a
         self.a = pygame.Vector2(0, 0)
 
-        for other in quadtree.query_circle(self):
-            if other is not self and other.alive() and not other.being_dragged:
-                self.apply_forces(other, dt)
+        for pseudo_particle in quadtree.query_bh(self):
+            self.apply_forces(pseudo_particle, dt)
+        for other in grid.get_neighbors(self):
+            if other is self or not other.alive():
+                continue
+            dx = other.x - self.x
+            dy = other.y - self.y
+            d2 = dx**2 + dy**2
+            R2 = (self.radius + other.radius)**2
+            if d2 <= R2:
+                self.combine_with(other)
 
         self.v += 0.5 * (old_a + self.a) * dt
         
@@ -251,6 +258,8 @@ class Particle(pygame.sprite.Sprite):
     def update_color(self, percentiles):
         """
         Update the particle's color based on its mass percentile among all particles.
+        Args:
+            percentiles (np.ndarray): the color bins.
         """
         if hasattr(self, "old_mass"):
             if self.mass == self.old_mass:
@@ -288,7 +297,7 @@ class Particle(pygame.sprite.Sprite):
         render_distance = (max(screen_size[0], screen_size[1]) / cam.zoom) * buffer_factor
         return (self.x - cam.pos.x)**2 + (self.y - cam.pos.y)**2 <= render_distance**2
 
-    def update(self, dt, cam, percentiles, quadtree=None):
+    def update(self, dt, cam, percentiles, grid, quadtree):
         """
         Update the particle each frame: apply forces, update position, color, and highlight.
         Args:
@@ -299,12 +308,12 @@ class Particle(pygame.sprite.Sprite):
         """
         if self.being_dragged != True and self.is_within_render_distance(cam) and not self.in_menu:
             self.old_pos = (self.x, self.y)
-            self.update_position(dt, quadtree)
+            self.update_position(dt, quadtree, grid)
             self.update_sprite()
-            self.new_pos = (self.x, self.y)
             self.update_color(percentiles)
+            self.new_pos = (self.x, self.y)
         if self.info:
-            self.draw_highlight(cam)
             self.one_info_particle()
+            self.draw_highlight(cam)
         if self.being_dragged:
             self.draw_highlight(cam)

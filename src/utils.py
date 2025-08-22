@@ -113,9 +113,18 @@ class QuadTree:
         self.divided = False
         self.level = level
         self.maxlevel = maxlevel
+
         self.nw = self.ne = self.sw = self.se = None
         self.children = []
+
+        # used for visualization scaled with camera manipulations
         self.cam = cam
+
+        # CoM stuff, used for barnes hut approximations
+        self.mass = 0.0
+        self.x_com = 0.0
+        self.y_com = 0.0
+        self.theta = 0.75
 
     def clear(self) -> None:
         """
@@ -186,13 +195,68 @@ class QuadTree:
                 return
         self.particles_in_node.append(particle)
 
+    def calculate_CoM(self) -> tuple[float, tuple[float, float]]:
+        """
+        Calculates the center of mass for every node in the quadtree.
+        Returns:
+            tuple:
+                - mass (float): The total mass of this node and of its children.
+                - com (tuple[float, float]): The (x, y) coordinates of the center of mass.
+        """
+        if not self.divided:
+            self.mass = sum(p.mass for p in self.particles_in_node)
+            if self.mass:
+                self.x_com = sum(p.mass * p.x for p in self.particles_in_node) / self.mass
+                self.y_com = sum(p.mass * p.y for p in self.particles_in_node) / self.mass
+            return self.mass, (self.x_com, self.y_com)
+        
+        self.mass = self.x_com = self.y_com = 0.0
+        for node in self.children:
+            mass, (cx, cy) = node.calculate_CoM()
+            self.mass += mass
+            self.x_com += mass * cx
+            self.y_com += mass * cy
+        if self.mass:
+            self.x_com /= self.mass
+            self.y_com /= self.mass
+
+        return self.mass, (self.x_com, self.y_com)
+
+    def query_bh(self, particle: "Particle") -> list[tuple[float, float, float]]:
+        """
+        Queries the quadtree for barnes-hut pseudo-particles to approximate forces.
+        Args:
+            particle (Particle): The particle you want to find the forces of.
+        Returns:
+            list[tuple[float, float, float]:
+                A list of pseudo-particles represented as tuples:
+                - x (float): the x coordinate of the center of mass
+                - y (float): the y coordinate of the center of mass
+                - mass (float): total mass of the pseudo-particle
+        """
+        pseudo_particles = []
+
+        s = max(self.boundary.width, self.boundary.height)
+        d = math.dist((self.x_com, self.y_com), (particle.x, particle.y))
+        epsilon = 1e-5
+        d = max(d, epsilon) # avoid division by zero
+
+        if s / d < self.theta:
+            if self.mass:
+                pseudo_particles.append((self.x_com, self.y_com, self.mass))
+        else:
+            for node in self.children:
+                pseudo_particles.extend(node.query_bh(particle))
+
+        return pseudo_particles
+
     def query_circle(self, particle: "Particle") -> list["Particle"]:
         """
-        Queries a circular area around the particle in order to find what particles (or so-called "neighbors") it may interact with.
+        Queries a circular area around the particle in order to find what particles (or so-called "neighbors") it may collide with.
         Args:
             particle (Particle): The particle you want to find the neighbors of.
         Returns:
-            found_particles[Particle]: A list of all the neighbors your queried particle may interact with.
+            found_particles[Particle]: A list of all the neighbors your queried particle may collide with.
         """
         center = (particle.x, particle.y)
         radius = particle.radius + MAX_RADIUS * 2
@@ -251,17 +315,14 @@ class QuadTree:
 
 class SpatialGrid:
     """
-    DEPRECATED...USE QUADTREE.
-    Spatial partitioning grid for efficient neighbor lookup in particle simulations.
+    Spatial partitioning grid used for particle collisions.
     """
-    def __init__(self, cell_size: float) -> None:
+    def __init__(self) -> None:
         """
         Initialize the grid with a given cell size.
-        Args:
-            cell_size (int): Size of each grid cell.
         """
         self.grid = {}
-        self.cell_size = cell_size
+        self.cell_size = MAX_RADIUS * 2
 
     def clear_grid(self) -> None:
         """
@@ -472,9 +533,9 @@ def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np
     _cached_color_bins = percentiles
     return percentiles
     
-def update_particles(particles: list["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, quadtree: QuadTree=None) -> None:
+def update_particles(particles: list["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree=None) -> None:
     for i, particle in enumerate(particles):
-        particle.update(dt, cam, percentiles, quadtree)
+        particle.update(dt, cam, percentiles, grid, quadtree)
 
 def find_particles_in_render_distance(particles: list["Particle"], cam: "Cam") -> list["Particle"]:
     particles_in_render = []
