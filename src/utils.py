@@ -421,7 +421,6 @@ def calculate_radius(mass: float, density: float) -> float:
     density = max(epsilon, density)
     area = mass / density
     radius = math.sqrt(area / math.pi)
-    print(radius)
     return max(MIN_RADIUS, min(radius, MAX_RADIUS))
 
 def split_string_every_n_chars(string: str, n: int) -> list[str]:
@@ -529,19 +528,23 @@ def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np
     masses = np.array([p.mass for p in particles])
     percentiles = np.percentile(masses, np.linspace(0, 100, 11))  # 10 intervals
     _cached_color_bins = percentiles
+
     return percentiles
 
 starting_split_index = 0
 split_size = int(MAX_PARTICLE_UPDATES / 10)
 
-def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree=None) -> None:
+def split_particles(particles: Sequence["Particle"]) -> Sequence["Particle"]:
     global starting_split_index
     global split_size
-    if len(particles) > MAX_PARTICLE_UPDATES:
-        if starting_split_index >= MAX_PARTICLE_UPDATES:
+    if starting_split_index >= MAX_PARTICLE_UPDATES:
             starting_split_index = 0
-        particles = particles[starting_split_index:starting_split_index + split_size]
-        starting_split_index += split_size
+    particles = particles[starting_split_index:starting_split_index + split_size]
+    starting_split_index += split_size
+
+    return particles
+    
+def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree=None) -> None:
     for i, particle in enumerate(particles):
         particle.update(dt, cam, percentiles, grid, quadtree)
 
@@ -553,4 +556,6 @@ def find_particles_in_render_distance(particles: list["Particle"], cam: "Cam") -
             particles_in_render.append(particle)
             continue
         particles_not_in_render.append(particle)
+    particles_not_in_render = split_particles(particles_not_in_render)
+
     return particles_in_render, particles_not_in_render
