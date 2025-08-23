@@ -8,7 +8,8 @@ class ParticleCreationMenu:
     Menu for creating and customizing a particle in the simulation.
     Handles UI elements, input validation, and particle preview.
     """
-    def __init__(self, font, ui_manager, groups, particles):
+    def __init__(self, font: pygame.Font, ui_manager: object, 
+                 groups: Sequence[pygame.sprite.Group], particles: pygame.sprite.Group) -> None:
         """
         Initialize the particle creation menu and its UI elements.
         Args:
@@ -37,7 +38,7 @@ class ParticleCreationMenu:
         self.default_x = 0
         self.default_y = 0
         self.default_vx = 0
-        self.default_vy = -10
+        self.default_vy = 0
         
         self.default_values = [self.default_x, self.default_y, self.default_mass, self.default_vx, self.default_vy, self.default_density]
         
@@ -71,7 +72,7 @@ class ParticleCreationMenu:
         self.menu_particle = Particle(mid_screen_width, mid_screen_height, 0, 0, self.default_mass, self.default_density, groups, particles)
         self.menu_particle.in_menu = True
 
-    def update_points(self):
+    def update_points(self) -> None:
          # calculates the positions for the ui elements
         win_w, win_h = self.display.get_size()
         mid_screen_width = win_w / 2
@@ -97,7 +98,7 @@ class ParticleCreationMenu:
                 x = mid_screen_width + math.sqrt(circle_radius**2 - (y - mid_screen_height)**2)
             self.points.append(pygame.FRect(x, y, 0, 0)) 
 
-    def draw_labels(self):
+    def draw_labels(self) -> None:
         """
         Draw labels and input boxes for particle properties on the menu.
         """
@@ -131,18 +132,20 @@ class ParticleCreationMenu:
             # border
             pygame.draw.rect(self.display, BORDER_COLOR, bg_rect, 1, 2)
             
-    def draw_particle(self, percentiles):
+    def draw_particle(self, percentiles: np.ndarray) -> None:
         """
         Draw a preview of the particle with current input values.
+        Args:
+            percentiles: color bins for determining color
         """
         win_w, win_h = self.display.get_size()
         try:
-            mass = int(self.input_boxes[2].get_text()) 
+            mass = float(self.input_boxes[2].get_text()) 
         except ValueError:
             mass = self.default_mass
             
         try:
-            density = int(self.input_boxes[5].get_text())
+            density = float(self.input_boxes[5].get_text())
         except ValueError:
             density = self.default_density
             
@@ -164,7 +167,7 @@ class ParticleCreationMenu:
         """
         # positional values (x, y)
         try:
-            x_input = int(self.input_boxes[0].get_text())
+            x_input = float(self.input_boxes[0].get_text())
             if not -HALF_WORLD_WIDTH <= x_input <= HALF_WORLD_WIDTH:
                 self.input_boxes[0].set_text(str(self.default_x))
         except ValueError:
@@ -173,7 +176,7 @@ class ParticleCreationMenu:
                 self.input_boxes[0].set_text('')
 
         try:
-            y_input = int(self.input_boxes[1].get_text())
+            y_input = float(self.input_boxes[1].get_text())
             if not -HALF_WORLD_HEIGHT <= y_input <= HALF_WORLD_HEIGHT:
                 self.input_boxes[1].set_text(str(self.default_y))
         except ValueError:
@@ -183,13 +186,13 @@ class ParticleCreationMenu:
 
         # velocity values (vx, vy)
         try:
-            vx_input = int(self.input_boxes[3].get_text())
+            vx_input = float(self.input_boxes[3].get_text())
         except ValueError:
             text = self.input_boxes[3].get_text()
             if text and not text[0] == '-':
                 self.input_boxes[3].set_text('')
         try:
-            vy_input = int(self.input_boxes[4].get_text())
+            vy_input = float(self.input_boxes[4].get_text())
         except ValueError:
             text = self.input_boxes[4].get_text()
             if text and not text[0] == '-':
@@ -197,7 +200,7 @@ class ParticleCreationMenu:
 
         # mass and density
         try:
-            mass_input = int(self.input_boxes[2].get_text())
+            mass_input = float(self.input_boxes[2].get_text())
             if mass_input <= 0:
                 self.input_boxes[2].set_text(str(self.default_values[2]))
         except ValueError:
@@ -206,7 +209,7 @@ class ParticleCreationMenu:
                 self.input_boxes[2].set_text('')
         
         try:
-            density_input = int(self.input_boxes[5].get_text())
+            density_input = float(self.input_boxes[5].get_text())
             if density_input <= 0:
                 self.input_boxes[5].set_text(str(self.default_values[5]))
         except ValueError:
@@ -214,9 +217,13 @@ class ParticleCreationMenu:
             if text and not text[0] == '-':
                 self.input_boxes[5].set_text('')
 
-    def exit_menu(self, logprinter, exittype, cam):
+    def exit_menu(self, logprinter: LogPrinter, exittype: Literal["create particle", "dont create particle"], cam: "Cam") -> None:
         """
         Apply the input values to the menu particle and exit the menu.
+        Args:
+            logprinter: logprinting singleton object
+            exittype: used to determine if a particle is created when exitting the menu
+            cam: camera object
         """
         if exittype == "create particle":
             # get particle values from input boxes
@@ -255,11 +262,12 @@ class ParticleCreationMenu:
         rect = self.display.get_rect().inflate(-20, -20)
         pygame.draw.rect(self.display, BORDER_COLOR, rect, 5, 5)
 
-    def update(self, ui_manager, percentiles):
+    def update(self, percentiles: np.ndarray) -> None:
         """
         Update the menu UI, validate input, draw the particle preview and border.
+        Args:
+            percentiles: color percentiles used for updating and drawing the menu particle.
         """
-        self.ui_manager = ui_manager
         self.update_points()
         self.draw_labels()
         self.limit_values()

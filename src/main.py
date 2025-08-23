@@ -30,6 +30,7 @@ class Game:
         self.old_world_mouse_pos = pygame.Vector2(self.mouse.get_pos())
         self.particle_menu = None
         self.dt = self.clock.tick(FPS) / 1000
+        self.debug = False
 
         # groups
         self.particles = ParticleDrawing()
@@ -134,53 +135,53 @@ class Game:
         frame_count = 0
         while self.on:
             frame_count += 1
-            # update_start = time.perf_counter()
-            self.quadtree.clear()
-            self.grid.clear_grid()
             self.dt = self.clock.tick(FPS) / 1000
 
+            self.quadtree.clear()
+            self.grid.clear_grid()
+
             percentiles = calculate_color_bins(self.particles, frame_count)
-            particles = find_particles_in_render_distance(self.particles, self.cam)
+            particles, p_not_in_render = find_particles_in_render_distance(self.particles, self.cam)
 
             for particle in particles:
                 self.quadtree.insert(particle)
                 self.grid.add_particle(particle)
+            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
+                for particle in p_not_in_render:
+                    self.quadtree.insert(particle)
+                    self.grid.add_particle(particle)
             self.quadtree.calculate_CoM()
 
             update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree)
+            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
+                update_particles(p_not_in_render, self.dt, self.cam, percentiles, self.grid, self.quadtree)
 
             self.logtext.update(self.dt)
             self.input.get_input(self.dt)
             self.event_handler()
             self.cam.update(self.dt)
-
             self.pass_in_vars()
-            # update_end = time.perf_counter()
 
             self.display_surf.fill(BG_COLOR)
             if not self.particle_menu:
-                # draw_start = time.perf_counter()
-                self.quadtree.visualize(self.cam.zoom, self.particles.offset)
+                if self.debug:
+                    self.quadtree.visualize(self.cam.zoom, self.particles.offset)
                 self.particles.draw(self.cam)
                 # Draw lines between neighboring particles [DEBUG]
-                for particle in particles:
-                    if particle.alive():
-                        particle.draw_neighbor_lines(self.display_surf, self.cam, self.quadtree)
+                if self.debug:
+                    for particle in particles:
+                        if particle.alive():
+                            particle.draw_neighbor_lines(self.display_surf, self.cam, self.grid)
                 self.draw_cam_info()
                 self.draw_world_border()
                 self.draw_particle_info()
                 self.logtext.draw(self.display_surf)
                 display_hints(self.logprinter)
-                # draw_end = time.perf_counter()
 
             self.manager.update(self.dt)
             if self.particle_menu:
-                self.particle_menu.update(self.manager, percentiles)
+                self.particle_menu.update(percentiles)
                 self.manager.draw_ui(self.display_surf)
-
-            # print(f"updating takes {update_end - update_start}s.")
-            # print(f"drawing takes {draw_end - draw_start}s.")
-            # print(f"particles rendered: {len(particles)}")
             
             pygame.display.update()
             

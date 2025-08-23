@@ -71,8 +71,8 @@ class Input:
         # get rid of particle info
         if key_just_pressed[pygame.K_ESCAPE]:
             if self.particle_menu:
-                self.particle_menu = None
                 self.particle_menu.exit_menu(self.logprinter, "dont create particle", self.game.cam)
+                self.particle_menu = None
             
             elif self.info_particle:
                 self.info_particle.info = False
@@ -88,6 +88,8 @@ class Input:
             else:
                 self.info_particle = self.particle_menu.menu_particle
                 self.info_particle.info = True
+                print(self.particle_menu.menu_particle)
+                print(self.info_particle)
                 self.particle_menu.exit_menu(self.game.logprinter, "create particle", self.game.cam)
                 self.particle_menu = None
         
@@ -108,5 +110,9 @@ class Input:
             num_particles_to_make = NUM_PARTICLES - len(self.game.particles)
             self.game.make_particles(num_particles_to_make)
             self.game.logprinter.print(f"Made {num_particles_to_make} particles!", type="info")
+
+        # sets debug mode on
+        if key_just_pressed[pygame.K_PERIOD]:
+            self.game.debug = not self.game.debug
 
         self.old_world_mouse_pos = world_mouse_pos

@@ -59,17 +59,17 @@ class Particle(pygame.sprite.Sprite):
         super().__init__(groups)
         self.update_sprite()
     
-    def draw_neighbor_lines(self, surface, cam, quadtree):
+    def draw_neighbor_lines(self, surface, cam, grid: SpatialGrid):
         """
-        Draw lines from this particle to all its neighbors found by the quadtree.
+        Draw lines from this particle to all its neighbors found by the spatial grid.
         Args:
             surface (pygame.Surface): The pygame surface to draw on.
             cam: Camera object for zoom and position.
-            quadtree: The quadtree for neighbor search.
+            grid: the grid for neighbor search
         """
-        if quadtree is None:
+        if grid is None:
             return
-        neighbors = quadtree.query_circle(self)
+        neighbors = grid.get_neighbors(self)
         win_w, win_h = surface.get_size()
         offset_x = -cam.pos.x * cam.zoom + win_w / 2
         offset_y = -cam.pos.y * cam.zoom + win_h / 2
@@ -306,7 +306,7 @@ class Particle(pygame.sprite.Sprite):
             quadtree: Quadtree for neighbor lookup.
             only_update_pos (bool): If True, only update position and rect, not interactions.
         """
-        if self.being_dragged != True and self.is_within_render_distance(cam) and not self.in_menu:
+        if self.being_dragged != True and not self.in_menu:
             self.old_pos = (self.x, self.y)
             self.update_position(dt, quadtree, grid)
             self.update_sprite()
