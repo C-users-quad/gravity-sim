@@ -294,7 +294,7 @@ class Particle(pygame.sprite.Sprite):
     def is_within_render_distance(self, cam):
         buffer_factor = 1.2 # allows rendering of particles slightly outside of the viewport for smoother visuals.
         screen_size = pygame.display.get_surface().get_size()
-        render_distance = (max(screen_size[0], screen_size[1]) / cam.zoom) * buffer_factor
+        render_distance = (max(MIN_RENDER_DISTANCE, max(screen_size[0], screen_size[1]) / cam.zoom)) * buffer_factor
         return (self.x - cam.pos.x)**2 + (self.y - cam.pos.y)**2 <= render_distance**2
 
     def update(self, dt, cam, percentiles, grid, quadtree):

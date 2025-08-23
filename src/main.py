@@ -63,7 +63,7 @@ class Game:
                 f"velocity = {self.info_particle.v}",
                 f"density = {truncate_decimal(self.info_particle.density, 1)}",
                 f"radius = {truncate_decimal(self.info_particle.radius, 1)} m",
-                f"position = {truncate_decimal(self.info_particle.rect.centerx, 1), truncate_decimal(self.info_particle.rect.centery, 1)}"
+                f"position = {truncate_decimal(self.info_particle.x, 1), truncate_decimal(self.info_particle.y, 1)}"
             ]
             draw_info(particle_info, self.font, self.display_surf, "topleft")
         else:
@@ -142,19 +142,15 @@ class Game:
 
             percentiles = calculate_color_bins(self.particles, frame_count)
             particles, p_not_in_render = find_particles_in_render_distance(self.particles, self.cam)
+            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
+                particles += p_not_in_render
 
             for particle in particles:
                 self.quadtree.insert(particle)
                 self.grid.add_particle(particle)
-            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
-                for particle in p_not_in_render:
-                    self.quadtree.insert(particle)
-                    self.grid.add_particle(particle)
             self.quadtree.calculate_CoM()
 
             update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree)
-            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
-                update_particles(p_not_in_render, self.dt, self.cam, percentiles, self.grid, self.quadtree)
 
             self.logtext.update(self.dt)
             self.input.get_input(self.dt)

@@ -144,7 +144,7 @@ class QuadTree:
         Args:
             particle (Particle): The particle you wish to insert.
         """
-        if not self.boundary.collidepoint(particle.rect.center):
+        if not self.boundary.collidepoint((particle.x, particle.y)):
             return
 
         if len(self.particles_in_node) < self.capacity:
@@ -190,7 +190,7 @@ class QuadTree:
             particle (Particle): the particle you wish to place into the Quadtree.
         """
         for node in self.children:
-            if node.boundary.collidepoint(particle.rect.center):
+            if node.boundary.collidepoint((particle.x, particle.y)):
                 node.insert(particle)
                 return
         self.particles_in_node.append(particle)
@@ -532,11 +532,12 @@ def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np
     return percentiles
 
 starting_split_index = 0
-split_size = int(MAX_PARTICLE_UPDATES / 10)
+split_size = MAX_PARTICLE_UPDATES
 
-def split_particles(particles: Sequence["Particle"]) -> Sequence["Particle"]:
+def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
     global starting_split_index
     global split_size
+    split_size -= n_particles_rendered
     if starting_split_index >= MAX_PARTICLE_UPDATES:
             starting_split_index = 0
     particles = particles[starting_split_index:starting_split_index + split_size]
@@ -556,6 +557,6 @@ def find_particles_in_render_distance(particles: list["Particle"], cam: "Cam") -
             particles_in_render.append(particle)
             continue
         particles_not_in_render.append(particle)
-    particles_not_in_render = split_particles(particles_not_in_render)
+    particles_not_in_render = split_particles_not_in_render(particles_not_in_render, len(particles_in_render))
 
     return particles_in_render, particles_not_in_render
