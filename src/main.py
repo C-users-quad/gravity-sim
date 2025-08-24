@@ -141,10 +141,8 @@ class Game:
             self.grid.clear_grid()
 
             percentiles = calculate_color_bins(self.particles, frame_count)
-            particles, p_not_in_render = find_particles_in_render_distance(self.particles, self.cam)
-            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
-                particles += p_not_in_render
-
+            particles = find_particles_in_render_distance(self.particles, self.cam)
+                
             for particle in particles:
                 self.quadtree.insert(particle)
                 self.grid.add_particle(particle)

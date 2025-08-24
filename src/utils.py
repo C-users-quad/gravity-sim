@@ -245,6 +245,8 @@ class QuadTree:
             if self.mass:
                 pseudo_particles.append((self.x_com, self.y_com, self.mass))
         else:
+            if not self.divided:
+                return pseudo_particles
             for node in self.children:
                 pseudo_particles.extend(node.query_bh(particle))
 
@@ -537,7 +539,7 @@ split_size = MAX_PARTICLE_UPDATES
 def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
     global starting_split_index
     global split_size
-    split_size -= n_particles_rendered
+    split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
     if starting_split_index >= MAX_PARTICLE_UPDATES:
             starting_split_index = 0
     particles = particles[starting_split_index:starting_split_index + split_size]
@@ -549,14 +551,15 @@ def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", per
     for i, particle in enumerate(particles):
         particle.update(dt, cam, percentiles, grid, quadtree)
 
-def find_particles_in_render_distance(particles: list["Particle"], cam: "Cam") -> tuple[list["Particle"], list["Particle"]]:
+def find_particles_in_render_distance(particles: list["Particle"], cam: "Cam") -> list["Particle"]:
     particles_in_render = []
     particles_not_in_render = []
     for particle in particles:
         if particle.is_within_render_distance(cam):
             particles_in_render.append(particle)
             continue
-        particles_not_in_render.append(particle)
+        else:
+            particles_not_in_render.append(particle)
     particles_not_in_render = split_particles_not_in_render(particles_not_in_render, len(particles_in_render))
 
-    return particles_in_render, particles_not_in_render
+    return particles_in_render + particles_not_in_render

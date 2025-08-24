@@ -101,52 +101,53 @@ class Particle(pygame.sprite.Sprite):
         highlight_width = max(self.min_highlight_width / cam.zoom, radius*0.05)
         pygame.draw.circle(self.image, HIGHLIGHT_COLOR, (self.radius, self.radius), self.radius, int(highlight_width))
 
-    def check_collision_and_merge(self, other):
-        """
-        DEPRECATED... JUST USE THE COLLISION DETECTION IN Particle.apply_forces()
-        Continuous collision detection for two moving circles in one frame.
-        Args:
-            other (Particle): Particle you are combining self with.
-        """
+    def check_collision_and_merge(self, other: "Particle", dt: float) -> None:
+        """deprecated..."""
         if not (self.alive() and other.alive()):
             return
-        # Relative motion
-        ### rel_vx = (distance moved by self particle on x axis) - (distance moved by other particle on x axis)
-        ### rel_vy = (distance moved by self particle on y axis) - (distance moved by other particle on y axis)
-        rel_vx = (self.new_pos[0] - self.old_pos[0]) - (other.new_pos[0] - other.old_pos[0])
-        rel_vy = (self.new_pos[1] - self.old_pos[1]) - (other.new_pos[1] - other.old_pos[1])
 
-        # Starting offset
-        dx = self.old_pos[0] - other.old_pos[0]
-        dy = self.old_pos[1] - other.old_pos[1]
+        # relative position and velocity
+        dx = self.x - other.x
+        dy = self.y - other.y
+        dvx = self.v.x - other.v.x
+        dvy = self.v.y - other.v.y
 
-        # Combined radius
         R = self.radius + other.radius
 
-        # Quadratic equation for time of collision: |(dx, dy) + t*(rel_vx, rel_vy)|^2 = R^2
-        a = rel_vx**2 + rel_vy**2 # velocity of self toward other
-        b = 2 * (dx * rel_vx + dy * rel_vy) # 
-        c = dx**2 + dy**2 - R**2 # distance squared minus combined radius squared
+        # Quadratic coefficients
+        a = dvx * dvx + dvy * dvy
+        b = 2 * (dx * dvx + dy * dvy)
+        c = dx * dx + dy * dy - R * R
 
-        # if a is 0, then the particles arent moving.
-        if a == 0:  # No relative motion — static overlap check
-            # if c is less than or equal to zero, then the particles are closer than their radiuses combined, or at that distance.
+        if a == 0.0:
+            # no relative velocity → just check overlap
             if c <= 0:
                 self.combine_with(other)
             return
 
-        discriminant = b**2 - 4*a*c
-        # negative discriminant = no solutions = no intersections.
+        discriminant = b * b - 4 * a * c
         if discriminant < 0:
-            return  # No intersection
+            return  # no collision
 
         sqrt_disc = math.sqrt(discriminant)
-        # the 2 solutions to the quadratic are t1 and t2. the values of t between these 2 are the time during this frame.
-        t1 = (-b - sqrt_disc) / (2*a)
-        t2 = (-b + sqrt_disc) / (2*a)
+        t1 = (-b - sqrt_disc) / (2 * a)
+        t2 = (-b + sqrt_disc) / (2 * a)
 
-        # If any collision happens within this frame [0,1]
-        if (0 <= t1 <= 1) or (0 <= t2 <= 1):
+        # choose the earliest valid collision time
+        t_hit = None
+        if 0 <= t1 <= dt:
+            t_hit = t1
+        elif 0 <= t2 <= dt:
+            t_hit = t2
+
+        if t_hit is not None:
+            # move both particles to collision point
+            self.x += self.v.x * t_hit
+            self.y += self.v.y * t_hit
+            other.x += other.v.x * t_hit
+            other.y += other.v.y * t_hit
+
+            # merge at the exact impact location
             self.combine_with(other)
 
     def apply_forces(self, pseudo_particle: tuple[float, float, float], dt: float) -> None:
@@ -179,7 +180,7 @@ class Particle(pygame.sprite.Sprite):
             return
         new_v = velocity_of_combined_particles(self, other)
         new_mass = combined_masses(self, other)
-        new_pos = self.rect.center if self.mass >= other.mass else other.rect.center
+        new_pos = self.x, self.y
         new_density = combined_density(self, other)
 
         if self.mass > other.mass:
@@ -247,8 +248,8 @@ class Particle(pygame.sprite.Sprite):
             dx = other.x - self.x
             dy = other.y - self.y
             d2 = dx**2 + dy**2
-            R2 = (self.radius + other.radius)**2
-            if d2 <= R2:
+            R2 = (other.radius + self.radius)**2
+            if R2 >= d2: # r2d2 yoooo
                 self.combine_with(other)
 
         self.v += 0.5 * (old_a + self.a) * dt
@@ -290,13 +291,31 @@ class Particle(pygame.sprite.Sprite):
             if particle.info and particle != self:
                 self.info = False
                 return
-    
+
     def is_within_render_distance(self, cam):
         buffer_factor = 1.2 # allows rendering of particles slightly outside of the viewport for smoother visuals.
         screen_size = pygame.display.get_surface().get_size()
         render_distance = (max(MIN_RENDER_DISTANCE, max(screen_size[0], screen_size[1]) / cam.zoom)) * buffer_factor
+        
         return (self.x - cam.pos.x)**2 + (self.y - cam.pos.y)**2 <= render_distance**2
 
+    def update_physics(self, dt, quadtree, grid):
+        substeps = 3
+        dt_step = dt / substeps
+        for _ in range(substeps):
+            self.old_pos = (self.x, self.y)
+            self.update_position(dt_step, quadtree, grid)
+            self.new_pos = (self.x, self.y)
+    
+    def update_drawing(self, percentiles, cam):
+        self.update_sprite()
+        self.update_color(percentiles)
+        if self.info:
+            self.one_info_particle()
+            self.draw_highlight(cam)
+        if self.being_dragged:
+            self.draw_highlight(cam)
+    
     def update(self, dt, cam, percentiles, grid, quadtree):
         """
         Update the particle each frame: apply forces, update position, color, and highlight.
@@ -306,14 +325,6 @@ class Particle(pygame.sprite.Sprite):
             quadtree: Quadtree for neighbor lookup.
             only_update_pos (bool): If True, only update position and rect, not interactions.
         """
-        if self.being_dragged != True and not self.in_menu:
-            self.old_pos = (self.x, self.y)
-            self.update_position(dt, quadtree, grid)
-            self.update_sprite()
-            self.update_color(percentiles)
-            self.new_pos = (self.x, self.y)
-        if self.info:
-            self.one_info_particle()
-            self.draw_highlight(cam)
-        if self.being_dragged:
-            self.draw_highlight(cam)
+        if not self.in_menu:
+            self.update_physics(dt, quadtree, grid)
+            self.update_drawing(percentiles, cam)
