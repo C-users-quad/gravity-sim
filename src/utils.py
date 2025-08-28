@@ -535,20 +535,20 @@ def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np
 
     return percentiles
 
-starting_split_index = 0
-split_size = MAX_PARTICLE_UPDATES
+# starting_split_index = 0
+# split_size = MAX_PARTICLE_UPDATES
 
-def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
-    """DEPRECATED..."""
-    global starting_split_index
-    global split_size
-    split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
-    if starting_split_index >= MAX_PARTICLE_UPDATES:
-            starting_split_index = 0
-    particles = particles[starting_split_index:starting_split_index + split_size]
-    starting_split_index += split_size
+# def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
+#     """DEPRECATED..."""
+#     global starting_split_index
+#     global split_size
+#     split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
+#     if starting_split_index >= MAX_PARTICLE_UPDATES:
+#             starting_split_index = 0
+#     particles = particles[starting_split_index:starting_split_index + split_size]
+#     starting_split_index += split_size
 
-    return particles
+#     return particles
     
 def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree) -> None:
     for particle in particles:
