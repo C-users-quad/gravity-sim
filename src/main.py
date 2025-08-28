@@ -141,28 +141,29 @@ class Game:
             self.grid.clear_grid()
 
             percentiles = calculate_color_bins(self.particles, frame_count)
-            particles, p_not_in_render = find_particles_in_render_distance(self.particles, self.cam)
-            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
-                particles += p_not_in_render
-
+            particles = self.cam.filter_rendered_particles(self.particles)
+            # if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
+            #     particles += p_not_in_render
+            print(len(particles))
+            
             for particle in particles:
                 self.quadtree.insert(particle)
                 self.grid.add_particle(particle)
             self.quadtree.calculate_CoM()
 
             update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree)
-
+            
             self.logtext.update(self.dt)
             self.input.get_input(self.dt)
             self.event_handler()
             self.cam.update(self.dt)
             self.pass_in_vars()
-
+            
             self.display_surf.fill(BG_COLOR)
             if not self.particle_menu:
                 if self.debug:
                     self.quadtree.visualize(self.cam.zoom, self.particles.offset)
-                self.particles.draw(self.cam)
+                self.particles.draw(particles, self.cam)
                 # Draw lines between neighboring particles [DEBUG]
                 if self.debug:
                     for particle in particles:
@@ -178,7 +179,7 @@ class Game:
             if self.particle_menu:
                 self.particle_menu.update(percentiles)
                 self.manager.draw_ui(self.display_surf)
-            
+
             pygame.display.update()
             
     def event_handler(self):

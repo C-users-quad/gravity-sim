@@ -1,6 +1,5 @@
 from settings import *
 from chatlog import LogText
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from particle import Particle
     from cam import Cam
@@ -222,7 +221,7 @@ class QuadTree:
 
         return self.mass, (self.x_com, self.y_com)
 
-    def query_bh(self, particle: "Particle") -> list[tuple[float, float, float]]:
+    def query_bh(self, particle: "Particle", pseudo_particles=None) -> list[tuple[float, float, float]]:
         """
         Queries the quadtree for barnes-hut pseudo-particles to approximate forces.
         Args:
@@ -234,19 +233,22 @@ class QuadTree:
                 - y (float): the y coordinate of the center of mass
                 - mass (float): total mass of the pseudo-particle
         """
-        pseudo_particles = []
+        if not pseudo_particles:
+            pseudo_particles = []
 
         s = max(self.boundary.width, self.boundary.height)
-        d = math.dist((self.x_com, self.y_com), (particle.x, particle.y))
+        dx = self.x_com - particle.x
+        dy = self.y_com - particle.y
+        d2 = dx*dx + dy*dy
         epsilon = 1e-5
-        d = max(d, epsilon) # avoid division by zero
+        d2 = max(d2, epsilon) # avoid division by zero
 
-        if s / d < self.theta:
+        if s*s < self.theta*self.theta * d2:
             if self.mass:
                 pseudo_particles.append((self.x_com, self.y_com, self.mass))
         else:
             for node in self.children:
-                pseudo_particles.extend(node.query_bh(particle))
+                node.query_bh(particle, pseudo_particles)
 
         return pseudo_particles
 
@@ -545,18 +547,6 @@ def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_r
 
     return particles
     
-def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree=None) -> None:
-    for i, particle in enumerate(particles):
-        particle.update(dt, cam, percentiles, grid, quadtree)
-
-def find_particles_in_render_distance(particles: list["Particle"], cam: "Cam") -> tuple[list["Particle"], list["Particle"]]:
-    particles_in_render = []
-    particles_not_in_render = []
+def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree) -> None:
     for particle in particles:
-        if particle.is_within_render_distance(cam):
-            particles_in_render.append(particle)
-            continue
-        particles_not_in_render.append(particle)
-    particles_not_in_render = split_particles_not_in_render(particles_not_in_render, len(particles_in_render))
-
-    return particles_in_render, particles_not_in_render
+        particle.update(dt, cam, percentiles, grid, quadtree)

@@ -1,5 +1,7 @@
 from settings import *
 from utils import *
+if TYPE_CHECKING:
+    from cam import Cam
 
 _cached_particle_surfs: dict[tuple, pygame.Surface] = {} # key = (radius, color), value = pygame.Surface()
 
@@ -290,21 +292,16 @@ class Particle(pygame.sprite.Sprite):
             if particle.info and particle != self:
                 self.info = False
                 return
-    
-    def is_within_render_distance(self, cam):
-        buffer_factor = 1.2 # allows rendering of particles slightly outside of the viewport for smoother visuals.
-        screen_size = pygame.display.get_surface().get_size()
-        render_distance = (max(MIN_RENDER_DISTANCE, max(screen_size[0], screen_size[1]) / cam.zoom)) * buffer_factor
-        return (self.x - cam.pos.x)**2 + (self.y - cam.pos.y)**2 <= render_distance**2
 
-    def update(self, dt, cam, percentiles, grid, quadtree):
+    def update(self, dt: float, cam, percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree):
         """
         Update the particle each frame: apply forces, update position, color, and highlight.
         Args:
             dt (float): Delta time since last frame.
             cam: Camera object.
+            percentiles: color bins for coloring particles based on mass
+            grid: the spatial grid for particle collisions
             quadtree: Quadtree for neighbor lookup.
-            only_update_pos (bool): If True, only update position and rect, not interactions.
         """
         if self.being_dragged != True and not self.in_menu:
             self.old_pos = (self.x, self.y)

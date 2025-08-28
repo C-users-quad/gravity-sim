@@ -5,14 +5,14 @@ import pygame_gui
 from random import randint, choice, uniform
 import numpy as np
 from os.path import join
-from typing import Literal, Sequence
+from typing import Literal, Sequence, TYPE_CHECKING
 import time
 
 WINDOW_WIDTH, WINDOW_HEIGHT = 1040, 585
-HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT = 100000, 100000
+HALF_WORLD_WIDTH, HALF_WORLD_HEIGHT = 25000, 25000
 BORDER_WIDTH = 30
 
-NUM_PARTICLES = 10000
+NUM_PARTICLES = 5000
 MAX_PARTICLES = 15000
 
 FRAMES_SKIPPED_FOR_FAR_PARTICLES = 5
