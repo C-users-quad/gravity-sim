@@ -20,6 +20,7 @@ class ParticleDrawing(pygame.sprite.Group):
         Draw all particles in the group, applying camera offset and zoom.
         Sprites being dragged are drawn on top of others.
         Args:
+            particles_in_render: particles in render distance.
             cam: Camera object for position and zoom.
         """
         target_pos = cam.pos

@@ -247,6 +247,8 @@ class QuadTree:
             if self.mass:
                 pseudo_particles.append((self.x_com, self.y_com, self.mass))
         else:
+            if not self.divided:
+                return pseudo_particles
             for node in self.children:
                 node.query_bh(particle, pseudo_particles)
 
@@ -539,7 +541,7 @@ split_size = MAX_PARTICLE_UPDATES
 def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
     global starting_split_index
     global split_size
-    split_size -= n_particles_rendered
+    split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
     if starting_split_index >= MAX_PARTICLE_UPDATES:
             starting_split_index = 0
     particles = particles[starting_split_index:starting_split_index + split_size]
@@ -550,3 +552,4 @@ def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_r
 def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree) -> None:
     for particle in particles:
         particle.update(dt, cam, percentiles, grid, quadtree)
+
