@@ -539,6 +539,7 @@ starting_split_index = 0
 split_size = MAX_PARTICLE_UPDATES
 
 def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
+    """DEPRECATED..."""
     global starting_split_index
     global split_size
     split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
