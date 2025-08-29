@@ -88,8 +88,6 @@ class Input:
             else:
                 self.info_particle = self.particle_menu.menu_particle
                 self.info_particle.info = True
-                print(self.particle_menu.menu_particle)
-                print(self.info_particle)
                 self.particle_menu.exit_menu(self.game.logprinter, "create particle", self.game.cam)
                 self.particle_menu = None
         

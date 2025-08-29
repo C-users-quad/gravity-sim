@@ -104,7 +104,7 @@ class QuadTree:
             level (int): The level that the node rests at. The root node's level is 0.
             maxlevel (int): The maximum level a node can be.
     """
-    def __init__(self, boundary: pygame.FRect | pygame.Rect, capacity: int, cam: object, level: int=0, maxlevel: int=7) -> None:
+    def __init__(self, boundary: pygame.FRect | pygame.Rect, capacity: int, cam: object, level: int=0, maxlevel: int=5) -> None:
         # self.boundary = (left, top, length, width) of bounding rect.
         self.boundary = boundary
         self.capacity = capacity
@@ -119,11 +119,12 @@ class QuadTree:
         # used for visualization scaled with camera manipulations
         self.cam = cam
 
-        # CoM stuff, used for barnes hut approximations
+        # used for barnes hut approximations
         self.mass = 0.0
         self.x_com = 0.0
         self.y_com = 0.0
-        self.theta = 0.75
+        self.theta2 = 0.75**2
+        self.s2 = 0.0
 
     def clear(self) -> None:
         """
@@ -136,6 +137,7 @@ class QuadTree:
             node.clear()
         self.children = []
         self.divided = False
+        self.s2 = 0.0
 
     def insert(self, particle: "Particle") -> None:
         """
@@ -194,7 +196,7 @@ class QuadTree:
                 return
         self.particles_in_node.append(particle)
 
-    def calculate_CoM(self) -> tuple[float, tuple[float, float]]:
+    def calculate_CoM(self) -> tuple[float, float, float]:
         """
         Calculates the center of mass for every node in the quadtree.
         Returns:
@@ -207,11 +209,11 @@ class QuadTree:
             if self.mass:
                 self.x_com = sum(p.mass * p.x for p in self.particles_in_node) / self.mass
                 self.y_com = sum(p.mass * p.y for p in self.particles_in_node) / self.mass
-            return self.mass, (self.x_com, self.y_com)
+            return self.x_com, self.y_com, self.mass
         
         self.mass = self.x_com = self.y_com = 0.0
         for node in self.children:
-            mass, (cx, cy) = node.calculate_CoM()
+            cx, cy, mass = node.calculate_CoM()
             self.mass += mass
             self.x_com += mass * cx
             self.y_com += mass * cy
@@ -219,9 +221,9 @@ class QuadTree:
             self.x_com /= self.mass
             self.y_com /= self.mass
 
-        return self.mass, (self.x_com, self.y_com)
+        return self.x_com, self.y_com, self.mass
 
-    def query_bh(self, particle: "Particle", pseudo_particles=None) -> list[tuple[float, float, float]]:
+    def query_bh(self, particle: "Particle", pseudo_particles=None) -> list[tuple[float, float, float]] | np.ndarray:
         """
         Queries the quadtree for barnes-hut pseudo-particles to approximate forces.
         Args:
@@ -233,25 +235,37 @@ class QuadTree:
                 - y (float): the y coordinate of the center of mass
                 - mass (float): total mass of the pseudo-particle
         """
-        if not pseudo_particles:
+        if pseudo_particles is None:
             pseudo_particles = []
-
-        s = max(self.boundary.width, self.boundary.height)
+        
+        if not self.s2:
+            s = max(self.boundary.width, self.boundary.height)
+            self.s2 = s*s
         dx = self.x_com - particle.x
         dy = self.y_com - particle.y
         d2 = dx*dx + dy*dy
         epsilon = 1e-5
-        d2 = max(d2, epsilon) # avoid division by zero
+        if d2 < epsilon: # avoid division by zero
+            d2 = epsilon 
 
-        if s*s < self.theta*self.theta * d2:
+        if self.s2 < self.theta2 * d2:
             if self.mass:
-                pseudo_particles.append((self.x_com, self.y_com, self.mass))
+                pseudo_particles.append([self.x_com, self.y_com, self.mass])
         else:
             if not self.divided:
                 return pseudo_particles
             for node in self.children:
+                if node.mass == 0:
+                    continue
                 node.query_bh(particle, pseudo_particles)
 
+        if self.level == 0:
+            pseudo_particles = np.array(pseudo_particles, dtype=np.float64)
+            if pseudo_particles.size == 0:
+                pseudo_particles = np.empty((0,3), dtype=np.float64)
+            elif pseudo_particles.ndim == 1:
+                pseudo_particles = pseudo_particles[np.newaxis, :]
+                
         return pseudo_particles
 
     def query_circle(self, particle: "Particle") -> list["Particle"]:
@@ -535,22 +549,22 @@ def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np
 
     return percentiles
 
-# starting_split_index = 0
-# split_size = MAX_PARTICLE_UPDATES
+starting_split_index = 0
+split_size = MAX_PARTICLE_UPDATES
 
-# def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
-#     """DEPRECATED..."""
-#     global starting_split_index
-#     global split_size
-#     split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
-#     if starting_split_index >= MAX_PARTICLE_UPDATES:
-#             starting_split_index = 0
-#     particles = particles[starting_split_index:starting_split_index + split_size]
-#     starting_split_index += split_size
+def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
+    """DEPRECATED..."""
+    global starting_split_index
+    global split_size
+    split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
+    if starting_split_index >= MAX_PARTICLE_UPDATES:
+            starting_split_index = 0
+    particles = particles[starting_split_index:starting_split_index + split_size]
+    starting_split_index += split_size
 
-#     return particles
+    return particles
     
-def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree) -> None:
+def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree, counter) -> None:
     for particle in particles:
-        particle.update(dt, cam, percentiles, grid, quadtree)
+        particle.update(dt, cam, percentiles, grid, quadtree, counter)
 

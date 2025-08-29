@@ -152,21 +152,23 @@ class Particle(pygame.sprite.Sprite):
             # merge at the exact impact location
             self.combine_with(other)
 
-    def apply_forces(self, pseudo_particle: tuple[float, float, float], dt: float) -> None:
+    def apply_forces(self, pseudo_particles: np.ndarray, dt: float) -> None:
         """
         Apply gravitational forces from neighboring particles.
         Args:
-            pseudo_particle (tuple[float, float, float]): a pseudo particle represented as an (x, y, mass) tuple.
+            pseudo_particles (np.ndarray): vectorized array of pseudo particles represented as (x, y, mass) tuples
             dt (float): Delta time since last frame.
         """
-        dx = pseudo_particle[0] - self.x
-        dy = pseudo_particle[1] - self.y
-        d2 = dx**2 + dy**2
+        epsilon = 1e-5
+        if len(pseudo_particles) == 0:
+            return
+        ppx, ppy, ppm = pseudo_particles[:, 0], pseudo_particles[:, 1], pseudo_particles[:, 2]
+        dx = ppx - self.x
+        dy = ppy - self.y
+        d2 = dx*dx + dy*dy + epsilon
 
-        if d2 > 0:
-            direction = pygame.Vector2(dx, dy)
-            force = G * self.mass * pseudo_particle[2] / d2
-            self.a += direction * (force / math.sqrt(d2) / self.mass) * dt
+        self.a.x = np.sum(G * ppm * dx / (d2**1.5))
+        self.a.y = np.sum(G * ppm * dy / (d2**1.5))
 
     def combine_with(self, other):
         """
@@ -226,24 +228,25 @@ class Particle(pygame.sprite.Sprite):
                 self.v.x *= -1
                 self.x = self.rect.centerx
     
-    def update_position(self, dt: float, quadtree: QuadTree, grid: SpatialGrid) -> None:
+    def update_position(self, dt: float, quadtree: QuadTree, grid: SpatialGrid, counter) -> None:
         """
         Update the particle's position based on velocity and handle window collisions.
         Args:
             dt (float): Delta time since last frame.
             quadtree: The game's quadtree.
         """
-        self.x += self.v.x * dt + 0.5 * self.a.x * dt**2
+        self.x += self.v.x * dt + 0.5 * self.a.x * dt*dt
         self.window_collisions("horizontal")
         
-        self.y += self.v.y * dt + 0.5 * self.a.y * dt**2
+        self.y += self.v.y * dt + 0.5 * self.a.y * dt*dt
         self.window_collisions("vertical")
 
         old_a = self.a
         self.a = pygame.Vector2(0, 0)
 
-        for pseudo_particle in quadtree.query_bh(self):
-            self.apply_forces(pseudo_particle, dt)
+        
+        pseudo_particles = quadtree.query_bh(self)
+        self.apply_forces(pseudo_particles, dt)
         for other in grid.get_neighbors(self):
             if other is self or not other.alive() or other.being_dragged:
                 continue
@@ -253,7 +256,7 @@ class Particle(pygame.sprite.Sprite):
             R2 = (other.radius + self.radius)**2
             if R2 >= d2: # r2d2 yoooo
                 self.combine_with(other)
-
+        
         self.v += 0.5 * (old_a + self.a) * dt
         
         self.rect.center = (self.x, self.y)
@@ -294,9 +297,9 @@ class Particle(pygame.sprite.Sprite):
                 self.info = False
                 return
 
-    def update_physics(self, dt, quadtree, grid):
+    def update_physics(self, dt, quadtree, grid, counter):
         self.old_pos = (self.x, self.y)
-        self.update_position(dt, quadtree, grid)
+        self.update_position(dt, quadtree, grid, counter)
         self.new_pos = (self.x, self.y)
     
     def update_drawing(self, percentiles, cam):
@@ -308,7 +311,7 @@ class Particle(pygame.sprite.Sprite):
         if self.being_dragged:
             self.draw_highlight(cam)
     
-    def update(self, dt, cam, percentiles, grid, quadtree):
+    def update(self, dt, cam, percentiles, grid, quadtree, counter):
         """
         Update the particle each frame: apply forces, update position, color, and highlight.
         Args:
@@ -319,5 +322,5 @@ class Particle(pygame.sprite.Sprite):
             quadtree: Quadtree for neighbor lookup.
         """
         if not self.in_menu:
-            self.update_physics(dt, quadtree, grid)
+            self.update_physics(dt, quadtree, grid, counter)
             self.update_drawing(percentiles, cam)

@@ -73,7 +73,15 @@ class Cam:
         buffer_factor = 1.2
         screen_size = pygame.display.get_surface().get_size()
         render_distance = (max(MIN_RENDER_DISTANCE, max(screen_size[0], screen_size[1]) / self.zoom)) * buffer_factor
-        return [ p for p in particles if (p.x - camx)**2 + (p.y - camy)**2 <= render_distance**2 ]
+
+        rendered_particles = []
+        p_not_in_render = []
+        for p in particles:
+            if (p.x - camx)**2 + (p.y - camy)**2 <= render_distance**2:
+                rendered_particles.append(p)
+                continue
+            p_not_in_render.append(p)
+        return rendered_particles, p_not_in_render
 
     def update(self, dt):
         """
