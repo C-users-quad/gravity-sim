@@ -1,46 +1,11 @@
 import pygame
+from OpenGL.GL import *
 import sys
-import math
-import pygame_gui
-from random import randint, choice, uniform
 import numpy as np
+import ctypes
+from OpenGL.GL.shaders import compileProgram, compileShader
 from os.path import join
-from typing import Literal, Sequence, TYPE_CHECKING
-import time
+import os
 
-WINDOW_WIDTH, WINDOW_HEIGHT = 1040, 585
-HALF_WORLD_WIDTH = HALF_WORLD_HEIGHT = 50000
-BORDER_WIDTH = 30
-
-NUM_PARTICLES = 10000
-MAX_PARTICLES = 15000
-
-# FRAMES_SKIPPED_FOR_FAR_PARTICLES = 5
-# MAX_PARTICLE_UPDATES = 750 # max num particles updated in a single frame
-MIN_RENDER_DISTANCE = 1920
-
-G = 10
-
-MIN_RADIUS, MAX_RADIUS = 2, 249
-MAX_STARTING_VELOCITY = 1000
-MAX_STARTING_MASS = 250000
-MAX_STARTING_DENSITY = 50
-PARTICLE_SPEED_AFTER_DRAGGING = 50
-PARTICLE_SPEED_AFTER_DRAGGING_UNCHANGED = True # determines if "PARTICLE_SPEED_AFTER_DRAGGING" is actually used (true if unused, false if used)
-
+WINDOW_WIDTH, WINDOW_HEIGHT = 1040, 960
 FPS = 60
-
-INFO_RECT_PADDING = 5
-INFO_RECT_COLOR = (16, 17, 18, 200)
-
-MIN_CAM_SPEED, MAX_CAM_SPEED = 150, 2500
-MIN_ZOOM, MAX_ZOOM = 0.19, 2
-SCROLL_WHEEL_SENSITIVITY = 50
-
-BG_COLOR = '#17171a'
-BUTTON_COLOR = "#4D64D6"
-HIGHLIGHT_COLOR = "#6BFD11"
-BORDER_COLOR = (240, 240, 240)
-INPUT_BOX_LENGTH = 50
-
-MAX_LOG_TEXT_CHAR_WIDTH = 150

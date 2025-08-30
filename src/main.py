@@ -1,227 +1,110 @@
 from settings import *
-from cam import Cam
-from particle import Particle
-from groups import ParticleDrawing
-from utils import *
-from hints import *
-from input import *
-
 
 class Game:
-    """
-    Main game class for the gravity simulation. Handles initialization,
-    rendering, game loop, and event management.
-    """
     def __init__(self):
-        """
-        Initialize the game, set up display, state variables, groups, sprites, and grid.
-        """
-        # setup
         pygame.init()
-        self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
-        pygame.display.set_caption('Gravity Sim')
-        pygame.display.set_icon(pygame.image.load(join('assets', 'icon.ico')))
-        self.on = True
+        self.display = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), 
+                                               pygame.OPENGL | pygame.DOUBLEBUF
+                                            )
         self.clock = pygame.time.Clock()
-        self.mouse = pygame.mouse
-        self.manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
-        
-        # game state variables
-        self.old_world_mouse_pos = pygame.Vector2(self.mouse.get_pos())
-        self.particle_menu = None
-        self.dt = self.clock.tick(FPS) / 1000
-        self.debug = False
+        glClearColor(0.0, 0.0, 0.0, 1) # (RGBA) tuple. setter for the color stored in GL_COLOR_BUFFER_BIT.
+        self.shader = self.create_shader(
+            join('shaders', 'vertex.txt'), 
+            join('shaders', 'fragment_shader.txt')
+        )
+        glUseProgram(self.shader) # its just a good idea to have a shader in use before creating an object that uses it.
+        self.triangle = Triangle()
+        self.on = True
+        self.run()
 
-        # groups
-        self.particles = ParticleDrawing()
-        self.logtext = pygame.sprite.Group()
-        
-        # sprites
-        self.cam = Cam()
-        self.font = pygame.font.Font(None, 20)
-        self.info_particle = None
-        self.dragged_particle = None
-        
-        # spatial partitioning tools (lag killers)
-        self.quadtree = QuadTree(pygame.FRect(-HALF_WORLD_WIDTH, -HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH * 2, HALF_WORLD_HEIGHT * 2), 1, self.cam)
-        self.grid = SpatialGrid()
+    def create_shader(self, vertex_file_path, fragment_file_path):
+        # reads the vertex and fragment shader files and creates a variable that holds their data as a string.
+        with open(vertex_file_path, 'r') as file:
+            vertex_src = file.readlines()
 
-        # singleton utility objects
-        self.logprinter = LogPrinter(self.font, self.logtext, self.logtext)
-        self.input = Input(self)
-        self.accelerator = Accelerator()
+        with open(fragment_file_path, 'r') as file:
+            fragment_src = file.readlines()
 
-    def draw_particle_info(self):
-        """
-        Draw information about the selected particle on the screen.
-        """
-        # if any info particle exists, draw its info
-        if self.info_particle and self.info_particle.alive():
-            particle_info = [
-                "----------[PARTICLE INFO]----------",
-                f"mass = {format(self.info_particle.mass, ",")} kg",
-                f"velocity = {self.info_particle.v}",
-                f"density = {truncate_decimal(self.info_particle.density, 1)}",
-                f"radius = {truncate_decimal(self.info_particle.radius, 1)} m",
-                f"position = {truncate_decimal(self.info_particle.x, 1), truncate_decimal(self.info_particle.y, 1)}"
-            ]
-            draw_info(particle_info, self.font, self.display_surf, "topleft")
-        else:
-            self.info_particle = None
-    
-    def draw_cam_info(self):
-        """
-        Draw camera information (position, speed, zoom, fps) on the screen.
-        """
-        cam_info = [
-            "----------[CAM INFO]----------",
-            f"pos = {truncate_decimal(self.cam.pos.x, 1), truncate_decimal(self.cam.pos.y, 1)}",
-            f"speed = {truncate_decimal(self.cam.speed, 1)}",
-            f"zoom = {truncate_decimal(self.cam.zoom, 1)}x",
-            f"fps = {truncate_decimal(self.clock.get_fps(), 0)}"
-        ]
-        draw_info(cam_info, self.font, self.display_surf, "topright")
-    
-    def make_particles(self, num=None):
-        """
-        Create and initialize all particles for the simulation.
-        """
-        for _ in range(NUM_PARTICLES if num == None else num):
-            args = (
-                randint(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH),   # x
-                randint(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT), # y
-                choice([-1, 1]) * randint(1, MAX_STARTING_VELOCITY),  # vx
-                choice([-1, 1]) * randint(1, MAX_STARTING_VELOCITY),  # vy
-                randint(1, MAX_STARTING_MASS),  # mass
-                randint(1, MAX_STARTING_DENSITY),   # density
-                self.particles, # groups
-                self.particles  # particles
-            )
-            Particle(*args)
-    
-    def draw_world_border(self):
-        """
-        Draw the border of the simulated world on the screen.
-        """
-        x = -HALF_WORLD_WIDTH - BORDER_WIDTH
-        y = -HALF_WORLD_HEIGHT - BORDER_WIDTH
-        width = HALF_WORLD_WIDTH * 2 + BORDER_WIDTH * 2
-        height = HALF_WORLD_HEIGHT * 2 + BORDER_WIDTH * 2
-        border_width = math.ceil(BORDER_WIDTH * self.cam.zoom)
-
-        rect = pygame.FRect(x, y, width, height)
-        # Apply cam transformation:
-        win_w, win_h = self.display_surf.get_size()
-        screen_rect = pygame.FRect(
-            (rect.x - self.cam.pos.x) * self.cam.zoom + win_w / 2,
-            (rect.y - self.cam.pos.y) * self.cam.zoom + win_h / 2,
-            rect.width * self.cam.zoom,
-            rect.height * self.cam.zoom
+        shader = compileProgram(
+            # compile shader takes in the source code of the shader (what it does), and a constant that tells opengl what kind of shader it is.
+            compileShader(vertex_src, GL_VERTEX_SHADER),
+            compileShader(fragment_src, GL_FRAGMENT_SHADER)
         )
 
-        pygame.draw.rect(self.display_surf, BORDER_COLOR, screen_rect, border_width if border_width > 0 else 1)
-
-    def pass_in_vars(self):
-        """Passes in certain variables used in both files to avoid runtime errors."""
-        self.info_particle = self.input.info_particle
-        self.dragged_particle = self.input.dragged_particle
-        self.particle_menu = self.input.particle_menu
+        return shader
 
     def run(self):
-        """
-        Main game loop. Handles updates, drawing, and event processing.
-        """
-        self.make_particles()
-        frame_count = 0
         while self.on:
-            frame_count += 1
-            self.dt = self.clock.tick(FPS) / 1000
+            dt = self.clock.tick(FPS) / 1000
 
-            self.quadtree.clear()
-            self.grid.clear_grid()
-
-            percentiles = calculate_color_bins(self.particles, frame_count)
-            particles = self.cam.filter_rendered_particles(self.particles)
-            # if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
-            #     particles += p_not_in_render
-            print(len(particles))
-            
-            for particle in particles:
-                self.quadtree.insert(particle)
-                self.grid.add_particle(particle)
-            self.quadtree.calculate_CoM()
-
-            update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree)
-            
-            self.logtext.update(self.dt)
-            self.input.get_input(self.dt)
             self.event_handler()
-            self.cam.update(self.dt)
-            self.pass_in_vars()
-            
-            self.display_surf.fill(BG_COLOR)
-            if not self.particle_menu:
-                if self.debug:
-                    self.quadtree.visualize(self.cam.zoom, self.particles.offset)
-                self.particles.draw(particles, self.cam)
-                # Draw lines between neighboring particles [DEBUG]
-                if self.debug:
-                    for particle in particles:
-                        if particle.alive():
-                            particle.draw_neighbor_lines(self.display_surf, self.cam, self.grid)
-                self.draw_cam_info()
-                self.draw_world_border()
-                self.draw_particle_info()
-                self.logtext.draw(self.display_surf)
-                display_hints(self.logprinter)
 
-            self.manager.update(self.dt)
-            if self.particle_menu:
-                self.particle_menu.update(percentiles)
-                self.manager.draw_ui(self.display_surf)
+            # screen refresh.
+            glClear(GL_COLOR_BUFFER_BIT) # fills the screen with the color as set in glClearColor() in the game constructor.
 
-            pygame.display.update()
-            
+            # draw a triangle.
+            glUseProgram(self.shader)
+            glBindVertexArray(self.triangle.vao)
+            glDrawArrays(GL_TRIANGLES, 0, self.triangle.vertex_count)
+
+            pygame.display.flip()
+        self.quit()
+
+    def quit(self):
+        self.triangle.destroy()
+        glDeleteProgram(self.shader)
+        pygame.quit()
+        sys.exit()
+
     def event_handler(self):
-        """
-        Handle all pygame events, including quit, input, camera controls, and menu interactions.
-        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-                
-            self.manager.process_events(event)
-                
-            # scrolling speeds up the camera movement speeds
-            if event.type == pygame.MOUSEWHEEL:
-                # LCTRL+SCROLL = ZOOM
-                if pygame.key.get_pressed()[pygame.K_LCTRL]:
-                    self.cam.zoom = self.accelerator.accelerate(self.cam.zoom, event.y, self.dt, "cam zoom")
-                    continue
-                # SCROLL = CAM SPEED
-                self.cam.speed = self.accelerator.accelerate(self.cam.speed, event.y, self.dt, "cam speed")
-                    
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_F11:
-                    pygame.display.toggle_fullscreen()
+                self.on = False
 
-            # if a particle creation menu is open, filter its input boxes to only accept valid characters
-            if self.particle_menu:
-                if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
-                    for i, box in enumerate(self.particle_menu.input_boxes):
-                        if box == event.ui_element:
-                            input = box.get_text()
-                            if input:
-                                if input[0] == '-':
-                                    numbers = ''.join(filter(str.isdigit, input))
-                                    box.set_text('-' + numbers)
-                                else:
-                                    box.set_text(''.join(filter(str.isdigit, input)))
-            
-            if event.type == pygame.VIDEORESIZE:
-                self.manager.set_window_resolution((event.w, event.h))
+class Triangle:
+    def __init__(self):
+        """
+        Creates the triangle.
+        """
+        # x, y, z, r, g, b
+        # each row is a vertex that contains a position(xyz) and a color.(rgb)
+        # in this case, z will be zero because i want this to be 2d.
+        self.vertices = (
+            -0.5, -0.5, 0.0, 1.0, 0.0, 0.0,
+             0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 
+             0.0,  0.5, 0.0, 0.0, 0.0, 1.0
+        )
+        self.vertices = np.array(self.vertices, dtype=np.float32)
 
-if __name__ == '__main__':
-    game = Game()
-    game.run()
+        self.vertex_count = 3
+        bytes_in_f32 = np.dtype(np.float32).itemsize
+
+        # generates a vao id
+        self.vao = glGenVertexArrays(1)
+        # tells opengl to use the vao id
+        glBindVertexArray(self.vao)
+
+        # Generates one buffer object id. self.vbo now contains that id.
+        self.vbo = glGenBuffers(1)
+        # Binds the buffer GL_ARRAY_BUFFER to the id vbo. also just tells opengl to use the vbo buffer id.
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        # allocates gpu memory for gl array buffer. also fills that memory with self.vertices.
+        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
+        # use attrib 0 for position with 3 indices that are floats, and prenormalized. 
+        glEnableVertexAttribArray(0)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, bytes_in_f32*6, ctypes.c_void_p(0))
+        # use attrib 1 for color with 3 indices that are floats, and prenormalized.
+        glEnableVertexAttribArray(1)
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, bytes_in_f32*6, ctypes.c_void_p(bytes_in_f32*3))
+        
+    def destroy(self):
+        """
+        Free the memory when exitting the program.
+        """
+        # these 2 functions expect lists, so we give them a list, even if it has one item (self.vao/vbo.)
+        # we add this little comma at the end to signify that the parenthasees arent for math but for a list.
+        glDeleteVertexArrays(1, (self.vao,))
+        glDeleteBuffers(1, (self.vbo,))
+
+if __name__ == "__main__":
+     game = Game()
