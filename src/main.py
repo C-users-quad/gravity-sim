@@ -1,5 +1,6 @@
 from settings import *
 from utils import *
+from cam import Camera
 
 N = 10 # num particles
 r = 100 # radius of each particle
@@ -13,6 +14,7 @@ bytes_in_f32 = np.dtype(np.float32).itemsize
 pygame.init()
 pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.DOUBLEBUF | pygame.OPENGL | pygame.RESIZABLE)
 pygame.display.set_caption("Truly the test of all time")
+cam = Camera()
 on = True
 # opengl initialization
 glClearColor(0.0, 0.0, 0.0, 1.0) # sets the color the window becomes when resetting the image between frames
@@ -117,4 +119,5 @@ def run():
         pygame.display.flip()
     quit()
 
-run() # program entrypoint
+if __name__ == "__main__":
+    run()
