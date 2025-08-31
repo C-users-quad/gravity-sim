@@ -1,110 +1,120 @@
 from settings import *
+from utils import *
 
-class Game:
-    def __init__(self):
-        pygame.init()
-        self.display = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), 
-                                               pygame.OPENGL | pygame.DOUBLEBUF
-                                            )
-        self.clock = pygame.time.Clock()
-        glClearColor(0.0, 0.0, 0.0, 1) # (RGBA) tuple. setter for the color stored in GL_COLOR_BUFFER_BIT.
-        self.shader = self.create_shader(
-            join('shaders', 'vertex.txt'), 
-            join('shaders', 'fragment_shader.txt')
-        )
-        glUseProgram(self.shader) # its just a good idea to have a shader in use before creating an object that uses it.
-        self.triangle = Triangle()
-        self.on = True
-        self.run()
+N = 10 # num particles
+r = 100 # radius of each particle
+bytes_in_f32 = np.dtype(np.float32).itemsize
 
-    def create_shader(self, vertex_file_path, fragment_file_path):
-        # reads the vertex and fragment shader files and creates a variable that holds their data as a string.
-        with open(vertex_file_path, 'r') as file:
-            vertex_src = file.readlines()
+# ==========================================
+# Initialization
+# ==========================================
 
-        with open(fragment_file_path, 'r') as file:
-            fragment_src = file.readlines()
+# pygame initialization
+pygame.init()
+pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.DOUBLEBUF | pygame.OPENGL | pygame.RESIZABLE)
+pygame.display.set_caption("Truly the test of all time")
+on = True
+# opengl initialization
+glClearColor(0.0, 0.0, 0.0, 1.0) # sets the color the window becomes when resetting the image between frames
+shader_program = get_shader_program(
+    join('shaders', 'vertex_shader.glsl'),
+    join('shaders', 'fragment_shader.glsl')
+)
+glUseProgram(shader_program)
+resize_viewport(WINDOW_WIDTH, WINDOW_HEIGHT, shader_program)
 
-        shader = compileProgram(
-            # compile shader takes in the source code of the shader (what it does), and a constant that tells opengl what kind of shader it is.
-            compileShader(vertex_src, GL_VERTEX_SHADER),
-            compileShader(fragment_src, GL_FRAGMENT_SHADER)
-        )
+# ==========================================
+# Particle Setup
+# ==========================================
 
-        return shader
+# 1. DEFINE UNIT SQUARE
+unit_square = np.array([
+    [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], # triangle ono
+    [-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5] # triangle two
+], dtype=np.float32)
 
-    def run(self):
-        while self.on:
-            dt = self.clock.tick(FPS) / 1000
+num_square_vertices = 6
 
-            self.event_handler()
+# 2. GENERATE PARTICLE ATTRIBUTES FOR N PARTICLES
+centers = np.random.rand(N, 2).astype(np.float32) * [WINDOW_WIDTH, WINDOW_HEIGHT]
+velocities = np.zeros((N, 2), dtype=np.float32)
+radii = np.ones(N, dtype=np.float32) * r
+colors = np.ones((N, 3), dtype=np.float32)
 
-            # screen refresh.
-            glClear(GL_COLOR_BUFFER_BIT) # fills the screen with the color as set in glClearColor() in the game constructor.
+# 3. STORE ATTRIBUTES IN GPU BUFFERS
 
-            # draw a triangle.
-            glUseProgram(self.shader)
-            glBindVertexArray(self.triangle.vao)
-            glDrawArrays(GL_TRIANGLES, 0, self.triangle.vertex_count)
+# Shape (N, 8)
+# each vertex has the data [centerx, centery, vx, vy, radius, r, g, b]
+particles_data = np.hstack([centers, velocities, radii.reshape(N, 1), colors]).astype(np.float32)
 
-            pygame.display.flip()
-        self.quit()
+# vao creation and binding
+vao = glGenVertexArrays(1)
+glBindVertexArray(vao)
 
-    def quit(self):
-        self.triangle.destroy()
-        glDeleteProgram(self.shader)
-        pygame.quit()
-        sys.exit()
+# vbo creation and binding
+vbo_unit_square = glGenBuffers(1)
+glBindBuffer(GL_ARRAY_BUFFER, vbo_unit_square)
+glBufferData(GL_ARRAY_BUFFER, unit_square.nbytes, unit_square, GL_STATIC_DRAW) # static draw tells opengl that this data wont be manipulated
+glEnableVertexAttribArray(0)
+glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, bytes_in_f32*2, ctypes.c_void_p(0))
 
-    def event_handler(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.on = False
+# vbo particle
+vbo_particle = glGenBuffers(1)
+glBindBuffer(GL_ARRAY_BUFFER, vbo_particle)
+glBufferData(GL_ARRAY_BUFFER, particles_data.nbytes, particles_data, GL_DYNAMIC_DRAW)
 
-class Triangle:
-    def __init__(self):
-        """
-        Creates the triangle.
-        """
-        # x, y, z, r, g, b
-        # each row is a vertex that contains a position(xyz) and a color.(rgb)
-        # in this case, z will be zero because i want this to be 2d.
-        self.vertices = (
-            -0.5, -0.5, 0.0, 1.0, 0.0, 0.0,
-             0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 
-             0.0,  0.5, 0.0, 0.0, 0.0, 1.0
-        )
-        self.vertices = np.array(self.vertices, dtype=np.float32)
+# attributes [centerx, centery, vx, vy, radius, r, g, b]
+stride = bytes_in_f32*8
+glEnableVertexAttribArray(1) # center: centerx, centery
+glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
+glVertexAttribDivisor(1, 1)
 
-        self.vertex_count = 3
-        bytes_in_f32 = np.dtype(np.float32).itemsize
+glEnableVertexAttribArray(2) # velocity: vx, vy
+glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*2))
+glVertexAttribDivisor(2, 1)
 
-        # generates a vao id
-        self.vao = glGenVertexArrays(1)
-        # tells opengl to use the vao id
-        glBindVertexArray(self.vao)
+glEnableVertexAttribArray(3) # radius: radius
+glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*4))
+glVertexAttribDivisor(3, 1)
 
-        # Generates one buffer object id. self.vbo now contains that id.
-        self.vbo = glGenBuffers(1)
-        # Binds the buffer GL_ARRAY_BUFFER to the id vbo. also just tells opengl to use the vbo buffer id.
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        # allocates gpu memory for gl array buffer. also fills that memory with self.vertices.
-        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
-        # use attrib 0 for position with 3 indices that are floats, and prenormalized. 
-        glEnableVertexAttribArray(0)
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, bytes_in_f32*6, ctypes.c_void_p(0))
-        # use attrib 1 for color with 3 indices that are floats, and prenormalized.
-        glEnableVertexAttribArray(1)
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, bytes_in_f32*6, ctypes.c_void_p(bytes_in_f32*3))
-        
-    def destroy(self):
-        """
-        Free the memory when exitting the program.
-        """
-        # these 2 functions expect lists, so we give them a list, even if it has one item (self.vao/vbo.)
-        # we add this little comma at the end to signify that the parenthasees arent for math but for a list.
-        glDeleteVertexArrays(1, (self.vao,))
-        glDeleteBuffers(1, (self.vbo,))
+glEnableVertexAttribArray(4) # color: r, g, b
+glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*5))
+glVertexAttribDivisor(4, 1)
 
-if __name__ == "__main__":
-     game = Game()
+# ==========================================
+# Main Loop Functions
+# ==========================================
+
+def quit():
+    glDeleteBuffers(2, (vbo_unit_square,vbo_particle))
+    glDeleteVertexArrays(1, (vao,))
+    pygame.quit()
+    sys.exit()
+
+def event_handler():
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            global on
+            on = False
+
+        if event.type == pygame.VIDEORESIZE:
+            resize_viewport(event.w, event.h, shader_program)
+
+# ==========================================
+# Main Loop
+# ==========================================
+
+def run():
+    while on:
+        # update phase
+        event_handler()
+
+        # drawing phase
+        glClear(GL_COLOR_BUFFER_BIT)
+        glBindVertexArray(vao)
+        glDrawArraysInstanced(GL_TRIANGLES, 0, num_square_vertices, N)
+
+        pygame.display.flip()
+    quit()
+
+run() # program entrypoint

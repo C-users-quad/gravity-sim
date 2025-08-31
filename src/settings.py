@@ -1,5 +1,6 @@
 import pygame
 from OpenGL.GL import *
+from OpenGL.GL.shaders import compileProgram, compileShader
 import sys
 import numpy as np
 import ctypes
