@@ -4,6 +4,7 @@ from cam import Camera
 
 N = 10 # num particles
 r = 100 # radius of each particle
+m = 100 # particle mass
 bytes_in_f32 = np.dtype(np.float32).itemsize
 
 # ==========================================
@@ -42,12 +43,13 @@ centers = np.random.rand(N, 2).astype(np.float32) * [WINDOW_WIDTH, WINDOW_HEIGHT
 velocities = np.zeros((N, 2), dtype=np.float32)
 radii = np.ones(N, dtype=np.float32) * r
 colors = np.ones((N, 3), dtype=np.float32)
+masses = np.ones(N, dtype=np.float32) * m
 
 # 3. STORE ATTRIBUTES IN GPU BUFFERS
 
 # Shape (N, 8)
 # each vertex has the data [centerx, centery, vx, vy, radius, r, g, b]
-particles_data = np.hstack([centers, velocities, radii.reshape(N, 1), colors]).astype(np.float32)
+particles_data = np.hstack([centers, radii.reshape(N, 1), colors]).astype(np.float32)
 
 # vao creation and binding
 vao = glGenVertexArrays(1)
@@ -65,23 +67,19 @@ vbo_particle = glGenBuffers(1)
 glBindBuffer(GL_ARRAY_BUFFER, vbo_particle)
 glBufferData(GL_ARRAY_BUFFER, particles_data.nbytes, particles_data, GL_DYNAMIC_DRAW)
 
-# attributes [centerx, centery, vx, vy, radius, r, g, b]
-stride = bytes_in_f32*8
+# attributes [centerx, centery, radius, r, g, b]
+stride = bytes_in_f32*6
 glEnableVertexAttribArray(1) # center: centerx, centery
 glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
 glVertexAttribDivisor(1, 1)
 
-glEnableVertexAttribArray(2) # velocity: vx, vy
-glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*2))
+glEnableVertexAttribArray(2) # radius: radius
+glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*2))
 glVertexAttribDivisor(2, 1)
 
-glEnableVertexAttribArray(3) # radius: radius
-glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*4))
+glEnableVertexAttribArray(3) # color: r, g, b
+glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*3))
 glVertexAttribDivisor(3, 1)
-
-glEnableVertexAttribArray(4) # color: r, g, b
-glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(bytes_in_f32*5))
-glVertexAttribDivisor(4, 1)
 
 # ==========================================
 # Main Loop Functions
@@ -100,7 +98,12 @@ def event_handler():
             on = False
 
         if event.type == pygame.VIDEORESIZE:
+            global WINDOW_WIDTH, WINDOW_HEIGHT
             resize_viewport(event.w, event.h, shader_program)
+            WINDOW_WIDTH, WINDOW_HEIGHT = event.w, event.h
+            
+        if event.type == pygame.MOUSEWHEEL:
+            cam.update_zoom(event.y)
 
 # ==========================================
 # Main Loop
@@ -108,8 +111,13 @@ def event_handler():
 
 def run():
     while on:
+        dt = 0.01
+        
         # update phase
         event_handler()
+        cam.update(dt)
+        
+        pass_in_uniforms(shader_program, WINDOW_WIDTH, WINDOW_HEIGHT, cam.zoom, cam.pos)
 
         # drawing phase
         glClear(GL_COLOR_BUFFER_BIT)

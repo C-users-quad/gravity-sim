@@ -2,12 +2,13 @@
 
 layout(location = 0) in vec2 aPos;
 layout(location = 1) in vec2 center;
-layout(location = 2) in vec2 velocity;
-layout(location = 3) in float radius;
-layout(location = 4) in vec3 color;
+layout(location = 2) in float radius;
+layout(location = 3) in vec3 color;
 
 uniform float u_WindowWidth;
 uniform float u_WindowHeight;
+uniform float u_CamZoom;
+uniform vec2 u_CamPos;
 
 out vec2 fragPos;
 out vec3 particleColor;
@@ -15,11 +16,14 @@ out float fragRadius;
 
 void main() 
 {
-    vec2 scaled = aPos * radius * 2.0;
-    vec2 worldPos = scaled + center;
-    vec2 ndc = (worldPos / vec2(u_WindowWidth, u_WindowHeight)) * 2.0 - 1.0;
+    vec2 scaled = aPos * radius * u_CamZoom * 2.0;
+    vec2 worldPos = scaled + center - u_CamPos;
+    vec2 ndc = vec2(
+        worldPos.x / u_WindowWidth * 2.0 - 1.0,
+        1.0 - worldPos.y / u_WindowHeight * 2.0
+    );
     gl_Position = vec4(ndc, 0.0, 1.0);
     particleColor = color;
     fragPos = scaled;
-    fragRadius = radius;
+    fragRadius = radius * u_CamZoom;
 }
