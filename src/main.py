@@ -45,11 +45,13 @@ radii = np.ones(N, dtype=np.float32) * r
 colors = np.ones((N, 3), dtype=np.float32)
 masses = np.ones(N, dtype=np.float32) * m
 
+particles = np.hstack([centers, velocities, radii, masses])
+
 # 3. STORE ATTRIBUTES IN GPU BUFFERS
 
 # Shape (N, 8)
 # each vertex has the data [centerx, centery, vx, vy, radius, r, g, b]
-particles_data = np.hstack([centers, radii.reshape(N, 1), colors]).astype(np.float32)
+particle_data_for_shaders = np.hstack([centers, radii.reshape(N, 1), colors]).astype(np.float32) 
 
 # vao creation and binding
 vao = glGenVertexArrays(1)
@@ -65,7 +67,7 @@ glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, bytes_in_f32*2, ctypes.c_void_p(
 # vbo particle
 vbo_particle = glGenBuffers(1)
 glBindBuffer(GL_ARRAY_BUFFER, vbo_particle)
-glBufferData(GL_ARRAY_BUFFER, particles_data.nbytes, particles_data, GL_DYNAMIC_DRAW)
+glBufferData(GL_ARRAY_BUFFER, particle_data_for_shaders.nbytes, particle_data_for_shaders, GL_DYNAMIC_DRAW)
 
 # attributes [centerx, centery, radius, r, g, b]
 stride = bytes_in_f32*6

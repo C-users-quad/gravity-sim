@@ -27,3 +27,6 @@ def get_shader_program(vertex_shader_path, frag_shader_path):
     )
 
     return shader_program
+
+
+    

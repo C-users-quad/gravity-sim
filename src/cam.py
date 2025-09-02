@@ -26,5 +26,3 @@ class Camera:
     def update(self, dt):
         self.input()
         self.move(dt)
-
-
