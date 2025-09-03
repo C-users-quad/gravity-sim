@@ -3,9 +3,9 @@ from settings import *
 class Camera:
     def __init__(self):
         self.zoom = 1
-        self.speed = 10
+        self.speed = 10000
         self.zoom_increment = 0.1 # how much zoom changes by when u scroll
-        self.speed_increment = 10
+        self.speed_increment = 1000
         self.pos = np.array([WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2], dtype=np.float32)
         self.direction = pygame.Vector2()
 

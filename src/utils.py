@@ -1,8 +1,15 @@
 from settings import *
 
-def resize_viewport(width, height, shader_program):
+def resize_viewport(width, height):
     glViewport(0, 0, width, height) # sets the size of opengls window.
-    
+
+def initialize_opengl_world_coord_system():
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(-HALF_WORLD_LENGTH, HALF_WORLD_LENGTH, HALF_WORLD_LENGTH, -HALF_WORLD_LENGTH, -1.0, 1.0)
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+
 def pass_in_uniforms(shader_program, win_w, win_h, cam_zoom, cam_pos):
     loc_w = glGetUniformLocation(shader_program, "u_WindowWidth")
     loc_h = glGetUniformLocation(shader_program, "u_WindowHeight")
