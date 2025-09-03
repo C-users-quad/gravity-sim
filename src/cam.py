@@ -5,6 +5,7 @@ class Camera:
         self.zoom = 1
         self.speed = 10
         self.zoom_increment = 0.1 # how much zoom changes by when u scroll
+        self.speed_increment = 10
         self.pos = np.array([WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2], dtype=np.float32)
         self.direction = pygame.Vector2()
 
@@ -22,6 +23,11 @@ class Camera:
         new_zoom = self.zoom + scroll_direction * self.zoom_increment
         self.zoom = max(MIN_ZOOM, min(new_zoom, MAX_ZOOM))
         print(self.zoom)
+
+    def update_speed(self, scroll_direction):
+        new_speed = self.speed + scroll_direction * self.speed_increment
+        self.speed = max(MIN_CAM_SPEED, min(new_speed, MAX_CAM_SPEED))
+        print(self.speed)
 
     def update(self, dt):
         self.input()

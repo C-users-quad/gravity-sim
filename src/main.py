@@ -1,10 +1,12 @@
 from settings import *
 from utils import *
 from cam import Camera
+from quadtree import *
+from collision import Boundary
 
-N = 10 # num particles
-r = 100 # radius of each particle
-m = 100 # particle mass
+NUM_PARTICLES = 1000 # num particles
+PARTICLE_RADIUS = 100 # radius of each particle
+PARTICLE_MASS = 100 # particle mass
 bytes_in_f32 = np.dtype(np.float32).itemsize
 
 # ==========================================
@@ -39,19 +41,19 @@ unit_square = np.array([
 num_square_vertices = 6
 
 # 2. GENERATE PARTICLE ATTRIBUTES FOR N PARTICLES
-centers = np.random.rand(N, 2).astype(np.float32) * [WINDOW_WIDTH, WINDOW_HEIGHT]
-velocities = np.zeros((N, 2), dtype=np.float32)
-radii = np.ones(N, dtype=np.float32) * r
-colors = np.ones((N, 3), dtype=np.float32)
-masses = np.ones(N, dtype=np.float32) * m
+centers = (np.random.rand(NUM_PARTICLES, 2).astype(np.float32) - 0.5) * 2 * HALF_WORLD_LENGTH
+velocities = np.zeros((NUM_PARTICLES, 2), dtype=np.float32)
+radii = (np.ones(NUM_PARTICLES, dtype=np.float32) * PARTICLE_RADIUS).reshape(NUM_PARTICLES, 1)
+colors = np.ones((NUM_PARTICLES, 3), dtype=np.float32)
+masses = (np.ones(NUM_PARTICLES, dtype=np.float32) * PARTICLE_MASS).reshape(NUM_PARTICLES, 1)
 
+# [cx, cy, vx, vy, r, m]
 particles = np.hstack([centers, velocities, radii, masses])
 
 # 3. STORE ATTRIBUTES IN GPU BUFFERS
 
-# Shape (N, 8)
-# each vertex has the data [centerx, centery, vx, vy, radius, r, g, b]
-particle_data_for_shaders = np.hstack([centers, radii.reshape(N, 1), colors]).astype(np.float32) 
+# each vertex has the data [centerx, centery, radius, r, g, b]
+particle_data_for_shaders = np.hstack([centers, radii, colors]).astype(np.float32) 
 
 # vao creation and binding
 vao = glGenVertexArrays(1)
@@ -90,10 +92,12 @@ glVertexAttribDivisor(3, 1)
 def quit():
     glDeleteBuffers(2, (vbo_unit_square,vbo_particle))
     glDeleteVertexArrays(1, (vao,))
+    glDeleteProgram(shader_program)
     pygame.quit()
     sys.exit()
 
 def event_handler():
+    keys = pygame.key.get_pressed()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             global on
@@ -105,7 +109,10 @@ def event_handler():
             WINDOW_WIDTH, WINDOW_HEIGHT = event.w, event.h
             
         if event.type == pygame.MOUSEWHEEL:
-            cam.update_zoom(event.y)
+            if keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]:
+                cam.update_speed(event.y)
+            else:
+                cam.update_zoom(event.y)   
 
 # ==========================================
 # Main Loop
@@ -116,15 +123,15 @@ def run():
         dt = 0.01
         
         # update phase
+
         event_handler()
         cam.update(dt)
-        
         pass_in_uniforms(shader_program, WINDOW_WIDTH, WINDOW_HEIGHT, cam.zoom, cam.pos)
 
         # drawing phase
         glClear(GL_COLOR_BUFFER_BIT)
         glBindVertexArray(vao)
-        glDrawArraysInstanced(GL_TRIANGLES, 0, num_square_vertices, N)
+        glDrawArraysInstanced(GL_TRIANGLES, 0, num_square_vertices, NUM_PARTICLES)
 
         pygame.display.flip()
     quit()

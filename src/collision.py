@@ -94,4 +94,3 @@ def resolve_elastic_collision(p1: np.ndarray, p2: np.ndarray, t: float) -> None:
     p1[3] += coeff * m2 * dy
     p2[2] -= coeff * m1 * dx
     p2[3] -= coeff * m1 * dy
-    
