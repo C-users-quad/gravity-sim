@@ -10,7 +10,7 @@ class Cam:
         """
         Initialize the camera with default position, speed, direction, and zoom.
         """
-        self.pos = pygame.Vector2(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2)
+        self.pos = pygame.Vector2(0, 0)
         self.speed = MIN_CAM_SPEED
         self.direction = pygame.Vector2()
         self.zoom = 1
@@ -33,7 +33,7 @@ class Cam:
         half_viewport_width = (WINDOW_WIDTH / 2) / self.zoom
         half_viewport_height = (WINDOW_HEIGHT / 2) / self.zoom
         
-        padding = 200
+        padding = 350
         
         min_x = -HALF_WORLD_WIDTH + half_viewport_width - padding
         max_x= HALF_WORLD_WIDTH - half_viewport_width + padding

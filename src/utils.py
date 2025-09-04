@@ -493,7 +493,7 @@ class Accelerator:
         self.accel_when_scrolled = 0.0 # The acceleration you get if theres a scroll event.
         self.old_event_y = 0
 
-    def accelerate(self, value: float, event_y: Literal[-1, 1], dt: float, type: Literal["cam speed", "cam zoom"]) -> float:
+    def accelerate(self, value: float, event_y: Literal[-1, 1], dt: float, type: Literal["cam speed"]) -> float:
         """
         Accelerates a value.
         Args:
@@ -510,12 +510,6 @@ class Accelerator:
             self.max_velocity = 5000 * (max(HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH) / 5000)
             min_return = MIN_CAM_SPEED * (max(HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH) / 5000)
             max_return = MAX_CAM_SPEED * (max(HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH) / 5000)
-        elif type == "cam zoom":
-            starting_velocity = 0.7
-            self.accel_when_scrolled = 0.5
-            self.max_velocity = 2
-            min_return = MIN_ZOOM 
-            max_return = MAX_ZOOM 
 
         if event_y != self.old_event_y:
             self.velocity = starting_velocity / dt * event_y
@@ -529,42 +523,22 @@ class Accelerator:
         self.old_event_y = event_y
 
         return max(min_return, min(value + self.velocity * dt, max_return))
-    
-_cached_color_bins = None
 
-def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np.ndarray:
-    global _cached_color_bins
-
-    skip_frames = 10 # [int] frames are skipped for calculations
-    if frame_count % skip_frames != 0:
-        if _cached_color_bins is not None:
-            return _cached_color_bins
-        
-    if len(particles) < 1:
-        return
-    
-    masses = np.array([p.mass for p in particles])
-    percentiles = np.percentile(masses, np.linspace(0, 100, 11))  # 10 intervals
-    _cached_color_bins = percentiles
-
-    return percentiles
-
-starting_split_index = 0
-split_size = MAX_PARTICLE_UPDATES
-
-def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_rendered: int) -> Sequence["Particle"]:
-    """DEPRECATED..."""
-    global starting_split_index
-    global split_size
-    split_size = MAX_PARTICLE_UPDATES - n_particles_rendered
-    if starting_split_index >= MAX_PARTICLE_UPDATES:
-            starting_split_index = 0
-    particles = particles[starting_split_index:starting_split_index + split_size]
-    starting_split_index += split_size
-
-    return particles
-    
-def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree, counter) -> None:
+def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", grid: SpatialGrid, quadtree: QuadTree, counter) -> None:
     for particle in particles:
-        particle.update(dt, cam, percentiles, grid, quadtree, counter)
+        particle.update(dt, cam, grid, quadtree, counter)
 
+def initialize_velocity(x, y):
+    pos = np.array([x, y], dtype=np.float32)
+    r = np.linalg.norm(pos) # magnitude of pos
+
+    if r == 0:
+        return np.zeros(2)
+
+    v_t = np.sqrt(G * CENTRAL_MASS / r)
+
+    direction = np.array([-pos[1], pos[0]])
+    direction /= np.linalg.norm(direction)
+    centrip_v = v_t * direction
+    
+    return centrip_v[0], centrip_v[1]

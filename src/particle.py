@@ -3,25 +3,6 @@ from utils import *
 if TYPE_CHECKING:
     from cam import Cam
 
-_cached_particle_surfs: dict[tuple, pygame.Surface] = {} # key = (radius, color), value = pygame.Surface()
-
-def surf_lookup(radius: int, color: tuple) -> list[pygame.Surface]:
-    """
-    Looks up and caches surfaces for particles.
-    Args:
-        radius (float): the radius of your particle.
-        color (ColorLike): the color of your particle
-    Returns:
-        particle_surf (pygame.Surface): the surface for the particle requested
-    """
-    key = (radius, color)
-    if key not in _cached_particle_surfs:
-        surf = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
-        pygame.draw.circle(surf, color, (radius, radius), radius)
-        _cached_particle_surfs[key] = surf
-    return _cached_particle_surfs[key]
-
-
 class Particle(pygame.sprite.Sprite):
     """
     Represents a particle in the gravity simulation. Handles physics, rendering, and interactions.
@@ -52,8 +33,8 @@ class Particle(pygame.sprite.Sprite):
         self.color = "red"
 
         self.being_dragged = False
-        self.in_menu = False
         self.info = False
+        self.moves = True
 
         self.old_pos = self.new_pos = (self.x, self.y)
 
@@ -61,6 +42,15 @@ class Particle(pygame.sprite.Sprite):
         super().__init__(groups)
         self.update_sprite()
     
+    def update_sprite(self):
+        """
+        Update the particle's image and rect based on its radius.
+        """
+        self.radius = calculate_radius(self.mass, self.density)
+        self.image = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, "white", (self.radius, self.radius), self.radius)
+        self.rect = self.image.get_frect(center = (self.x, self.y))
+
     def draw_neighbor_lines(self, surface, cam, grid: SpatialGrid):
         """
         Draw lines from this particle to all its neighbors found by the spatial grid.
@@ -83,15 +73,6 @@ class Particle(pygame.sprite.Sprite):
             x2 = neighbor.x * cam.zoom + offset_x
             y2 = neighbor.y * cam.zoom + offset_y
             pygame.draw.line(surface, (0,255,0), (x1, y1), (x2, y2), 2)
-    
-    def update_sprite(self):
-        """
-        Update the particle's image and rect based on its radius and color.
-        """
-        self.radius = calculate_radius(self.mass, self.density)
-        image = surf_lookup(int(self.radius), self.color)
-        self.image = image.copy()
-        self.rect = self.image.get_frect(center = (self.x, self.y))
 
     def draw_highlight(self, cam):
         """
@@ -103,55 +84,6 @@ class Particle(pygame.sprite.Sprite):
         highlight_width = max(self.min_highlight_width / cam.zoom, radius*0.05)
         pygame.draw.circle(self.image, HIGHLIGHT_COLOR, (self.radius, self.radius), self.radius, int(highlight_width))
 
-    def check_collision_and_merge(self, other: "Particle", dt: float) -> None:
-        """deprecated..."""
-        if not (self.alive() and other.alive()):
-            return
-
-        # relative position and velocity
-        dx = self.x - other.x
-        dy = self.y - other.y
-        dvx = self.v.x - other.v.x
-        dvy = self.v.y - other.v.y
-
-        R = self.radius + other.radius
-
-        # Quadratic coefficients
-        a = dvx * dvx + dvy * dvy
-        b = 2 * (dx * dvx + dy * dvy)
-        c = dx * dx + dy * dy - R * R
-
-        if a == 0.0:
-            # no relative velocity → just check overlap
-            if c <= 0:
-                self.combine_with(other)
-            return
-
-        discriminant = b * b - 4 * a * c
-        if discriminant < 0:
-            return  # no collision
-
-        sqrt_disc = math.sqrt(discriminant)
-        t1 = (-b - sqrt_disc) / (2 * a)
-        t2 = (-b + sqrt_disc) / (2 * a)
-
-        # choose the earliest valid collision time
-        t_hit = None
-        if 0 <= t1 <= dt:
-            t_hit = t1
-        elif 0 <= t2 <= dt:
-            t_hit = t2
-
-        if t_hit is not None:
-            # move both particles to collision point
-            self.x += self.v.x * t_hit
-            self.y += self.v.y * t_hit
-            other.x += other.v.x * t_hit
-            other.y += other.v.y * t_hit
-
-            # merge at the exact impact location
-            self.combine_with(other)
-
     def apply_forces(self, pseudo_particles: np.ndarray, dt: float) -> None:
         """
         Apply gravitational forces from neighboring particles.
@@ -159,7 +91,7 @@ class Particle(pygame.sprite.Sprite):
             pseudo_particles (np.ndarray): vectorized array of pseudo particles represented as (x, y, mass) tuples
             dt (float): Delta time since last frame.
         """
-        epsilon = 1e-5
+        epsilon = 1
         if len(pseudo_particles) == 0:
             return
         ppx, ppy, ppm = pseudo_particles[:, 0], pseudo_particles[:, 1], pseudo_particles[:, 2]
@@ -169,39 +101,6 @@ class Particle(pygame.sprite.Sprite):
 
         self.a.x = np.sum(G * ppm * dx / (d2**1.5))
         self.a.y = np.sum(G * ppm * dy / (d2**1.5))
-
-    def combine_with(self, other):
-        """
-        Combine this particle with another, updating mass, velocity, and position.
-        Only the more massive particle (or lower id as tiebreaker) performs the merge to avoid double merging.
-        Args:
-            other: Another Particle object.
-        """
-        if not (self.alive() and other.alive()):
-            return
-        # Only allow the more massive (or lower id as tiebreaker) particle to perform the merge
-        if self.mass < other.mass or (self.mass == other.mass and id(self) > id(other)):
-            return
-        new_v = velocity_of_combined_particles(self, other)
-        new_mass = combined_masses(self, other)
-        new_pos = self.x, self.y
-        new_density = combined_density(self, other)
-
-        if self.mass > other.mass:
-            self.x, self.y = new_pos
-            self.v = new_v
-            self.mass = new_mass
-            self.density = new_density
-            self.radius = calculate_radius(self.mass, self.density)
-            self.update_sprite()
-            other.kill()
-        else:
-            other.x, other.y = new_pos
-            other.v = new_v
-            other.mass = new_mass
-            other.radius = calculate_radius(other.mass, other.density)
-            other.update_sprite()
-            self.kill()
     
     def window_collisions(self, direction):
         """
@@ -228,6 +127,96 @@ class Particle(pygame.sprite.Sprite):
                 self.v.x *= -1
                 self.x = self.rect.centerx
     
+    def ccd_resolve(self, other, dt: float) -> None:
+        """
+        Continuous collision detection between 2 particles
+        Args:
+            particles (np.ndarray): shape (N,M) numpy array representing all particles (N) and their attributes (M attributes per particle)
+            candidates (np.ndarray): shape (K,2) numpy array representing all possible collision pairs (K pairs per particle)
+            dt (float): delta time over one frame
+        """
+        px = other.x - self.x
+        py = other.y - self.y
+        vx = other.v.x - self.v.x
+        vy = other.v.y - self.v.y
+        R  = other.radius + self.radius
+        R2 = R*R
+        
+        # p_dot_p is effectively distance squared. if its less than R2, then theres a collision at t=0.
+        p_dot_p = px*px + py*py
+        if p_dot_p < R2:
+            self.resolve(other, 0)
+            return
+        
+        # if theres no collision already and velocities are zero, then there wont be a collision.
+        v_dot_v = vx*vx + vy*vy
+        if v_dot_v == 0:
+            return
+        
+        # quadratic check
+        a = v_dot_v
+        b = 2*(px*vx + py*vy)
+        c = p_dot_p - R2
+        
+        # if the discriminant is negative, there arent any real solutions.
+        discriminant = b*b - 4*a*c
+        if discriminant < 0:
+            return
+
+        sqrt_disc = discriminant**0.5
+        t1 = (-b - sqrt_disc) / (2*a)
+        t2 = (-b + sqrt_disc) / (2*a)
+        
+        t = dt + 1.0 # sentinel time
+        if 0 <= t1 <= dt:
+            t = t1
+        if 0 <= t2 <= dt and t2 < t:
+            t = t2
+
+        if t != dt + 1.0:
+            self.resolve(other, t)
+
+    def resolve(self, other, t: float) -> None:
+        """
+        Resolve 2D collision between particles i and j at time t.
+        Args:
+            t (float): the time of collision between particles p1 and p2.
+        """
+        # move to collision
+        self.x += self.v.x * t
+        self.y += self.v.y * t
+        other.x += other.v.x * t
+        other.y += other.v.y * t
+
+        # relative position & velocity
+        dx = other.x - self.x
+        dy = other.y - self.y
+
+        dist2 = dx*dx + dy*dy
+        if dist2 == 0.0:
+            return
+
+        # normalize displacement
+        dist = (dx**2 + dy**2)**0.5
+        overlap = (self.radius + other.radius) - dist
+        if overlap > 0:
+            if not self.moves:
+                self_correction = 0
+                other_correction = overlap
+            elif not other.moves:
+                self_correction = overlap
+                other_correction = 0
+            else:
+                self_correction = overlap / 2
+                other_correction = overlap / 2
+            
+            # normalize displacement vector
+            nx, ny = dx / dist, dy / dist
+            self.x -= nx * self_correction
+            self.y -= ny * self_correction
+            other.x += nx * other_correction
+            other.y += ny * other_correction
+
     def update_position(self, dt: float, quadtree: QuadTree, grid: SpatialGrid, counter) -> None:
         """
         Update the particle's position based on velocity and handle window collisions.
@@ -243,50 +232,17 @@ class Particle(pygame.sprite.Sprite):
 
         old_a = self.a
         self.a = pygame.Vector2(0, 0)
-
         
         pseudo_particles = quadtree.query_bh(self)
         self.apply_forces(pseudo_particles, dt)
         for other in grid.get_neighbors(self):
             if other is self or not other.alive() or other.being_dragged:
                 continue
-            dx = other.x - self.x
-            dy = other.y - self.y
-            d2 = dx**2 + dy**2
-            R2 = (other.radius + self.radius)**2
-            if R2 >= d2: # r2d2 yoooo
-                self.combine_with(other)
+            self.ccd_resolve(other, dt)
         
         self.v += 0.5 * (old_a + self.a) * dt
         
         self.rect.center = (self.x, self.y)
-
-    def update_color(self, percentiles):
-        """
-        Update the particle's color based on its mass percentile among all particles.
-        Args:
-            percentiles (np.ndarray): the color bins.
-        """
-        if hasattr(self, "old_mass"):
-            if self.mass == self.old_mass:
-                return
-            elif abs(self.mass - self.old_mass) < self.much:
-                return
-
-        colors = [
-            (5, 209, 255), (53, 197, 255), (107, 183, 255),
-            (146, 167, 255), (190, 139, 255), (234, 102, 243),
-            (255, 55, 197), (255, 46, 143), (255, 11, 88), (255, 0, 0)
-        ]
-
-        # Find which percentile bin this particle's mass falls into
-        for i in range(len(percentiles) - 1):
-            if percentiles[i] <= self.mass < percentiles[i + 1]:
-                self.color = colors[i]
-                break
-        else:
-            self.color = colors[-1]
-        self.old_mass = self.mass
     
     def one_info_particle(self):
         """
@@ -298,29 +254,28 @@ class Particle(pygame.sprite.Sprite):
                 return
 
     def update_physics(self, dt, quadtree, grid, counter):
-        self.old_pos = (self.x, self.y)
-        self.update_position(dt, quadtree, grid, counter)
-        self.new_pos = (self.x, self.y)
+        if self.moves:
+            self.old_pos = (self.x, self.y)
+            self.update_position(dt, quadtree, grid, counter)
+            self.new_pos = (self.x, self.y)
     
-    def update_drawing(self, percentiles, cam):
-        self.update_sprite()
-        self.update_color(percentiles)
+    def update_drawing(self, cam):
         if self.info:
             self.one_info_particle()
             self.draw_highlight(cam)
         if self.being_dragged:
             self.draw_highlight(cam)
+        if not self.info or not self.being_dragged:
+            self.update_sprite()
     
-    def update(self, dt, cam, percentiles, grid, quadtree, counter):
+    def update(self, dt, cam, grid, quadtree, counter):
         """
         Update the particle each frame: apply forces, update position, color, and highlight.
         Args:
             dt (float): Delta time since last frame.
             cam: Camera object.
-            percentiles: color bins for coloring particles based on mass
             grid: the spatial grid for particle collisions
             quadtree: Quadtree for neighbor lookup.
         """
-        if not self.in_menu:
-            self.update_physics(dt, quadtree, grid, counter)
-            self.update_drawing(percentiles, cam)
+        self.update_physics(dt, quadtree, grid, counter)
+        self.update_drawing(cam)

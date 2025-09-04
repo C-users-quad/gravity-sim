@@ -15,7 +15,7 @@ class ParticleDrawing(pygame.sprite.Group):
         self.display_surface = pygame.display.get_surface()
         self.offset = pygame.Vector2()
 
-    def draw(self, particles_in_render: Sequence["Particle"], cam: "Cam"):
+    def draw(self, cam: "Cam"):
         """
         Draw all particles in the group, applying camera offset and zoom.
         Sprites being dragged are drawn on top of others.
@@ -30,8 +30,8 @@ class ParticleDrawing(pygame.sprite.Group):
         self.offset.x = (-target_pos[0] * zoom) + (win_w / 2)
         self.offset.y = (-target_pos[1] * zoom) + (win_h / 2)    
         
-        other_particles = [particle for particle in particles_in_render if hasattr(particle, 'being_dragged') and particle.being_dragged == False]
-        dragged_particle = [particle for particle in particles_in_render if hasattr(particle, 'being_dragged') and particle.being_dragged ==  True]
+        other_particles = [particle for particle in self if hasattr(particle, 'being_dragged') and particle.being_dragged == False]
+        dragged_particle = [particle for particle in self if hasattr(particle, 'being_dragged') and particle.being_dragged ==  True]
         
         for layer in [other_particles, dragged_particle]:
             for sprite in layer:

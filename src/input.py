@@ -1,19 +1,17 @@
 from settings import *
 from utils import *
-from menu import *
 
 
 class Input:
     def __init__(self, game):
         self.dragged_particle = None
         self.info_particle = None
-        self.particle_menu = None
         self.old_world_mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
         self.game = game
 
     def get_input(self, dt):
         """
-        Handle user input for dragging, info display, menu toggling, particle deletion, and particle repopulation.
+        Handle user input for dragging, info display, particle deletion, and particle repopulation.
         Args:
             dt (float): Delta time since last frame.
             world_mouse_pos (Vector2): Mouse position in world coordinates.
@@ -37,9 +35,6 @@ class Input:
             else:
                 # find what particle (if any) was dragged and label it as the dragged particle
                 particle = find_particle(self.game.particles, world_mouse_pos)
-                if self.particle_menu:
-                    if particle == self.particle_menu.menu_particle:
-                        particle = None
                 if particle:
                     self.dragged_particle = particle
                     particle.being_dragged = True
@@ -70,26 +65,9 @@ class Input:
         
         # get rid of particle info
         if key_just_pressed[pygame.K_ESCAPE]:
-            if self.particle_menu:
-                self.particle_menu.exit_menu(self.logprinter, "dont create particle", self.game.cam)
-                self.particle_menu = None
-            
-            elif self.info_particle:
+            if self.info_particle:
                 self.info_particle.info = False
                 self.info_particle = None
-
-        # opens + closes particle creation menu
-        if key_just_pressed[pygame.K_RETURN]:
-            if not self.particle_menu:
-                if len(self.game.particles) >= MAX_PARTICLES:
-                    self.game.logprinter.print(f"There are too many particles!", type="error")
-                    return
-                self.particle_menu = ParticleCreationMenu(self.game.font, self.game.manager, (self.game.particles, self.game.particles), self.game.particles)
-            else:
-                self.info_particle = self.particle_menu.menu_particle
-                self.info_particle.info = True
-                self.particle_menu.exit_menu(self.game.logprinter, "create particle", self.game.cam)
-                self.particle_menu = None
         
         # deletes particle thats being interacted with
         if key_just_pressed[pygame.K_BACKSPACE]:

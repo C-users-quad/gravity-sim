@@ -18,7 +18,7 @@ class Game:
         """
         # setup
         pygame.init()
-        self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
+        self.display_surf = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE | pygame.HWSURFACE)
         pygame.display.set_caption('Gravity Sim')
         pygame.display.set_icon(pygame.image.load(join('assets', 'icon.ico')))
         self.on = True
@@ -28,7 +28,6 @@ class Game:
         
         # game state variables
         self.old_world_mouse_pos = pygame.Vector2(self.mouse.get_pos())
-        self.particle_menu = None
         self.dt = self.clock.tick(FPS) / 1000
         self.debug = False
 
@@ -84,21 +83,30 @@ class Game:
     
     def make_particles(self, num=None):
         """
-        Create and initialize all particles for the simulation.
+        Create and initialize all particles for the simulation in a uniform disc around the central particle.
         """
+        central_particle = Particle(0, 0, 0, 0, CENTRAL_MASS, 1, self.particles, self.particles)
+        central_particle.moves = False
         for _ in range(NUM_PARTICLES if num == None else num):
+            r = np.random.uniform(0, MAX_UNIFORM_DISC_RADIUS)
+            theta = np.random.uniform(0, 2 * np.pi)
+
+            x = r * np.cos(theta)
+            y = r * np.sin(theta)
+
+            vx, vy = initialize_velocity(x, y)
             args = (
-                randint(-HALF_WORLD_WIDTH, HALF_WORLD_WIDTH),   # x
-                randint(-HALF_WORLD_HEIGHT, HALF_WORLD_HEIGHT), # y
-                choice([-1, 1]) * randint(1, MAX_STARTING_VELOCITY),  # vx
-                choice([-1, 1]) * randint(1, MAX_STARTING_VELOCITY),  # vy
-                randint(1, MAX_STARTING_MASS),  # mass
-                randint(1, MAX_STARTING_DENSITY),   # density
+                x,   # x
+                y, # y
+                vx,  # vx
+                vy,  # vy
+                OTHER_MASS,  # mass
+                1,   # density
                 self.particles, # groups
                 self.particles  # particles
             )
             Particle(*args)
-    
+        
     def draw_world_border(self):
         """
         Draw the border of the simulated world on the screen.
@@ -125,7 +133,6 @@ class Game:
         """Passes in certain variables used in both files to avoid runtime errors."""
         self.info_particle = self.input.info_particle
         self.dragged_particle = self.input.dragged_particle
-        self.particle_menu = self.input.particle_menu
 
     def run(self):
         """
@@ -137,22 +144,17 @@ class Game:
             frame_count += 1
             self.dt = self.clock.tick(FPS) / 1000
 
+            # UPDATE PHASE
             self.quadtree.clear()
             self.grid.clear_grid()
 
-            percentiles = calculate_color_bins(self.particles, frame_count)
-            particles, p_not_in_render = self.cam.filter_rendered_particles(self.particles)
-            if frame_count % FRAMES_SKIPPED_FOR_FAR_PARTICLES == 0:
-                p_not_in_render = split_particles_not_in_render(p_not_in_render, len(particles))
-                particles += p_not_in_render
-
-            for particle in particles:
+            for particle in self.particles:
                 self.quadtree.insert(particle)
                 self.grid.add_particle(particle)
             self.quadtree.calculate_CoM()
             counter = {"e":0.0} # for debug
 
-            update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree, counter)
+            self.particles.update(self.dt, self.cam, self.grid, self.quadtree, counter)
             
             self.logtext.update(self.dt)
             self.input.get_input(self.dt)
@@ -160,26 +162,22 @@ class Game:
             self.cam.update(self.dt)
             self.pass_in_vars()
             
+            # DRAW PHASE
             self.display_surf.fill(BG_COLOR)
-            if not self.particle_menu:
-                if self.debug:
-                    self.quadtree.visualize(self.cam.zoom, self.particles.offset)
-                self.particles.draw(particles, self.cam)
-                # Draw lines between neighboring particles [DEBUG]
-                if self.debug:
-                    for particle in particles:
-                        if particle.alive():
-                            particle.draw_neighbor_lines(self.display_surf, self.cam, self.grid)
-                self.draw_cam_info()
-                self.draw_world_border()
-                self.draw_particle_info()
-                self.logtext.draw(self.display_surf)
-                display_hints(self.logprinter)
+            if self.debug:
+                self.quadtree.visualize(self.cam.zoom, self.particles.offset)
+            self.particles.draw(self.cam)
+            # Draw lines between neighboring particles [DEBUG]
+            if self.debug:
+                for particle in self.particles:
+                    particle.draw_neighbor_lines(self.display_surf, self.cam, self.grid)
+            self.draw_cam_info()
+            self.draw_world_border()
+            self.draw_particle_info()
+            self.logtext.draw(self.display_surf)
+            display_hints(self.logprinter)
 
             self.manager.update(self.dt)
-            if self.particle_menu:
-                self.particle_menu.update(percentiles)
-                self.manager.draw_ui(self.display_surf)
 
             pygame.display.update()
             if self.debug:
@@ -187,7 +185,7 @@ class Game:
             
     def event_handler(self):
         """
-        Handle all pygame events, including quit, input, camera controls, and menu interactions.
+        Handle all pygame events, including quit, input, camera controls.
         """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -200,7 +198,8 @@ class Game:
             if event.type == pygame.MOUSEWHEEL:
                 # LCTRL+SCROLL = ZOOM
                 if pygame.key.get_pressed()[pygame.K_LCTRL]:
-                    self.cam.zoom = self.accelerator.accelerate(self.cam.zoom, event.y, self.dt, "cam zoom")
+                    new_zoom = self.cam.zoom + event.y * 0.03
+                    self.cam.zoom = min(MAX_ZOOM, max(new_zoom, MIN_ZOOM))
                     continue
                 # SCROLL = CAM SPEED
                 self.cam.speed = self.accelerator.accelerate(self.cam.speed, event.y, self.dt, "cam speed")
@@ -208,19 +207,6 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     pygame.display.toggle_fullscreen()
-
-            # if a particle creation menu is open, filter its input boxes to only accept valid characters
-            if self.particle_menu:
-                if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
-                    for i, box in enumerate(self.particle_menu.input_boxes):
-                        if box == event.ui_element:
-                            input = box.get_text()
-                            if input:
-                                if input[0] == '-':
-                                    numbers = ''.join(filter(str.isdigit, input))
-                                    box.set_text('-' + numbers)
-                                else:
-                                    box.set_text(''.join(filter(str.isdigit, input)))
             
             if event.type == pygame.VIDEORESIZE:
                 self.manager.set_window_resolution((event.w, event.h))

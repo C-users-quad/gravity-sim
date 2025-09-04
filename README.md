@@ -13,9 +13,6 @@
 ## Keyboard Keys
 
 - **WASD** to move the camera around
-- **ENTER** to open the particle creation menu
-  - **ENTER** again to create the particle
-  - **ESC** to exit the menu and not create the particle
 - **ESC** to stop displaying particle info
 - **BACKSPACE** to delete the selected/dragged particle
 - **R** to refill simulation with particles
