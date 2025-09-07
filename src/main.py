@@ -1,6 +1,7 @@
 from settings import *
 from shaders import vertex_shader, fragment_shader
 from camera import Camera
+from particle import make_particles
 
 app.use_app('PyQt6')
 
@@ -21,31 +22,20 @@ class Canvas(app.Canvas):
         self.pressed_keys = set() # used to store key presses for continuous cam panning.
 
         # === Initialize Particles ===
-        """
-        note for self: create a function called make_particles in a separate file
-        what it does:
-            - initializes positions in a uniform disc
-            - initializes velocity
-            - stores positions and velocities in numpy arrays with shape (N, num_attributes)
-        """
-        # pos = make_particles(N)
-        color = np.ones((N, 3), dtype=np.float32) # white.
-        pos = np.zeros((N, 2), dtype=np.float32) # temp, delete this once u implement make_particles which returns np.array of pos.
-        radius = np.ones(N, dtype=np.float32) * 10
+        make_particles()
 
         # === Initialize Gloo ===
         self.program = gloo.Program(vertex_shader, fragment_shader)
-        self.program['a_color'] = color
-        self.program['a_pos'] = pos
-        self.program['a_radius'] = radius
-        self.program['u_HALF_WORLD_LENGTH'] = HALF_WORLD_LENGTH
 
         # === Initialize Timer ===
         self.timer = app.timer.Timer(interval=DT, connect=self.on_timer, start=True)
 
         self.show()
 
-    def update_program(self):
+    def update_program(self, color, pos, radius):
+        self.program['a_color'] = color
+        self.program['a_pos'] = pos
+        self.program['a_radius'] = radius
         self.program['u_CamPos'] = self.cam.pos
         self.program['u_CamZoom'] = self.cam.zoom
 
@@ -60,6 +50,7 @@ class Canvas(app.Canvas):
         dt = event.dt
         for key in self.pressed_keys:
             self.cam.update(key, dt)
+        
         self.update_program()
         self.update()
 
