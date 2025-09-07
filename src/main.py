@@ -42,7 +42,7 @@ class Game:
         self.dragged_particle = None
         
         # spatial partitioning tools (lag killers)
-        self.quadtree = QuadTree(pygame.FRect(-HALF_WORLD_WIDTH, -HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH * 2, HALF_WORLD_HEIGHT * 2), 1, self.cam)
+        self.quadtree = QuadTree(pygame.FRect(-HALF_WORLD_WIDTH, -HALF_WORLD_HEIGHT, HALF_WORLD_WIDTH * 2, HALF_WORLD_HEIGHT * 2), 5, self.cam)
         self.grid = SpatialGrid()
 
         # singleton utility objects
@@ -87,14 +87,27 @@ class Game:
         """
         central_particle = Particle(0, 0, 0, 0, CENTRAL_MASS, 1, self.particles, self.particles)
         central_particle.moves = False
-        for _ in range(NUM_PARTICLES if num == None else num):
-            r = np.random.uniform(0, MAX_UNIFORM_DISC_RADIUS)
-            theta = np.random.uniform(0, 2 * np.pi)
 
+        particle_radii = []
+        for _ in range(NUM_PARTICLES if num == None else num):
+            u = np.random.uniform(0.0, 1.0)
+            max_r2 = MAX_UNIFORM_DISC_RADIUS*MAX_UNIFORM_DISC_RADIUS
+            min_r2 = MAX_RADIUS*MAX_RADIUS
+            r = np.sqrt((max_r2 - min_r2) * u + min_r2)
+            theta = np.random.uniform(0, 2 * np.pi)
+            particle_radii.append((r, theta))
+        particle_radii.sort(key = lambda x: x[0])
+
+        cumulative_mass = [CENTRAL_MASS]
+        for r, theta in particle_radii:
+            m_enclosed = cumulative_mass[-1] + OTHER_MASS
+            cumulative_mass.append(m_enclosed)
+
+        for i, (r, theta) in enumerate(particle_radii):
             x = r * np.cos(theta)
             y = r * np.sin(theta)
 
-            vx, vy = initialize_velocity(x, y)
+            vx, vy = initialize_velocity(x, y, cumulative_mass[i])
             args = (
                 x,   # x
                 y, # y
