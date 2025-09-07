@@ -4,46 +4,6 @@ if TYPE_CHECKING:
     from particle import Particle
     from cam import Cam
 
-def combined_masses(p1: "Particle", p2: "Particle") -> float:
-    """
-    Return the sum of the masses of two particles.
-    Args:
-        p1, p2: Particle objects with a mass attribute.
-    Returns:
-        float: Combined mass.
-    """
-    return p1.mass + p2.mass
-
-def velocity_of_combined_particles(p1: "Particle", p2: "Particle") -> pygame.Vector2:
-    """
-    Calculate the velocity of two combined particles using conservation of momentum.
-    Args:
-        p1, p2: Particle objects with mass and velocity attributes.
-    Returns:
-        Vector2: Resulting velocity.
-    """
-    return ((p1.mass * p1.v) + (p2.mass * p2.v)) / (p1.mass + p2.mass)
-
-def combined_density(p1: "Particle", p2: "Particle") -> float:
-    """
-    Calculates the density of two combined particles.
-    Args:
-        p1, p2 (Particle): Particles with mass and density attributes.
-    Returns:
-        float: Calculated density.
-    """
-    # Area = pi * r^2 for each particle
-    area1 = math.pi * p1.radius**2
-    area2 = math.pi * p2.radius**2
-    total_mass = p1.mass + p2.mass
-    total_area = area1 + area2
-    # density = total_mass / total_area
-    density = total_mass / total_area if total_area > 0 else 1.0
-    # Clamp to simulation range
-    min_density = 0.01
-    max_density = 1000
-    return max(min_density, min(density, max_density))
-
 def draw_info(infos: list[str], font: pygame.Font, display: pygame.display, corner: Literal["topleft", "topright"]) -> None:
     """
     Draw a list of info strings on the display surface at the specified corner.
@@ -104,7 +64,7 @@ class QuadTree:
             level (int): The level that the node rests at. The root node's level is 0.
             maxlevel (int): The maximum level a node can be.
     """
-    def __init__(self, boundary: pygame.FRect | pygame.Rect, capacity: int, cam: object, level: int=0, maxlevel: int=5) -> None:
+    def __init__(self, boundary: pygame.FRect | pygame.Rect, capacity: int, cam: object, level: int=0, maxlevel: int=6) -> None:
         # self.boundary = (left, top, length, width) of bounding rect.
         self.boundary = boundary
         self.capacity = capacity
@@ -123,7 +83,7 @@ class QuadTree:
         self.mass = 0.0
         self.x_com = 0.0
         self.y_com = 0.0
-        self.theta2 = 0.75**2
+        self.theta = 0.75
         self.s2 = 0.0
 
     def clear(self) -> None:
@@ -238,18 +198,13 @@ class QuadTree:
         if pseudo_particles is None:
             pseudo_particles = []
         
-        if not self.s2:
-            s = max(self.boundary.width, self.boundary.height)
-            self.s2 = s*s
+        s = max(self.boundary.width, self.boundary.height)
         dx = self.x_com - particle.x
         dy = self.y_com - particle.y
-        d2 = dx*dx + dy*dy
-        epsilon = 1e-5
-        if d2 < epsilon: # avoid division by zero
-            d2 = epsilon 
+        d = (dx*dx + dy*dy)**0.5 + 1e-5
 
-        if self.s2 < self.theta2 * d2:
-            if self.mass:
+        if self.divided is False or (s / d) < self.theta:
+            if self.mass and (abs(self.x_com - particle.x) > 1e-12 or abs(self.y_com - particle.y) > 1e-12):
                 pseudo_particles.append([self.x_com, self.y_com, self.mass])
         else:
             if not self.divided:
@@ -267,38 +222,6 @@ class QuadTree:
                 pseudo_particles = pseudo_particles[np.newaxis, :]
                 
         return pseudo_particles
-
-    def query_circle(self, particle: "Particle") -> list["Particle"]:
-        """
-        DEPRECATED... SPATIALGRID USED FOR COLLISIONS INSTEAD.
-        Queries a circular area around the particle in order to find what particles (or so-called "neighbors") it may collide with.
-        Args:
-            particle (Particle): The particle you want to find the neighbors of.
-        Returns:
-            found_particles[Particle]: A list of all the neighbors your queried particle may collide with.
-        """
-        center = (particle.x, particle.y)
-        radius = particle.radius + MAX_RADIUS * 2
-        query_rect = pygame.FRect(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
-        found_particles = []
-
-        if not self.boundary.colliderect(particle.rect):
-            return found_particles
-        
-        for p in self.particles_in_node:
-            dx = p.x - center[0]
-            dy = p.y - center[1]
-            distance2 = dx**2 + dy**2
-            if distance2 <= radius**2:
-                found_particles.append(p)
-
-        if not self.divided:
-            return found_particles
-        
-        for node in self.children:
-            found_particles.extend(node.query_circle(particle))
-
-        return found_particles
 
     def draw_line(self, p1: "Particle", p2: "Particle", zoom: float, offset: pygame.Vector2):
         pygame.draw.line(
@@ -528,17 +451,17 @@ def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", gri
     for particle in particles:
         particle.update(dt, cam, grid, quadtree, counter)
 
-def initialize_velocity(x, y):
-    pos = np.array([x, y], dtype=np.float32)
+def initialize_velocity(x, y, m_enclosed):
+    pos = np.array([x, y], dtype=np.float64)
     r = np.linalg.norm(pos) # magnitude of pos
 
     if r == 0:
         return np.zeros(2)
 
-    v_t = np.sqrt(G * CENTRAL_MASS / r)
+    v_t = np.sqrt(G * m_enclosed / r)
 
-    direction = np.array([-pos[1], pos[0]])
+    direction = -np.array([-pos[1], pos[0]], dtype=np.float64)
     direction /= np.linalg.norm(direction)
-    centrip_v = v_t * direction
+    vx, vy = v_t * direction
     
-    return centrip_v[0], centrip_v[1]
+    return vx, vy
