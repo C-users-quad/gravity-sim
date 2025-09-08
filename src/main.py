@@ -2,6 +2,7 @@ from settings import *
 from shaders import vertex_shader, fragment_shader
 from camera import Camera
 from particle import make_particles
+from quadtree import update_quadtree
 
 app.use_app('PyQt6')
 
@@ -50,7 +51,7 @@ class Canvas(app.Canvas):
         dt = event.dt
         for key in self.pressed_keys:
             self.cam.update(key, dt)
-        
+        update_quadtree()
         self.update_program()
         self.update()
 

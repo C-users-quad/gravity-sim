@@ -8,6 +8,8 @@ HALF_WORLD_LENGTH = 1000 # the world is a square with side lengths HALF_WORLD_LE
 
 DT = 0.01 # time between frames in seconds.
 
+MAX_NODES = 100_000
+
 G = 1
 N = 10 # num particles
 R = 10 # radius of particles

@@ -113,3 +113,9 @@ def resolve_elastic_collision(particle_index: int, candidate_index: int, t: floa
     velocities[particle_index, 1] += coeff * m2 * dy
     velocities[candidate_index, 0] -= coeff * m1 * dx
     velocities[candidate_index, 1] -= coeff * m1 * dy
+
+@njit
+def point_in_boundary(boundary: np.ndarray, px: float, py: float) -> bool:
+    """returns true if point px, py is in a rectangle with left, top, width, height."""
+    left, top, width, height = boundary
+    return (left <= px < left + width) and (top <= py < top + height)
