@@ -1,8 +1,8 @@
 from settings import *
 from shaders import vertex_shader, fragment_shader
 from camera import Camera
-from particle import make_particles
-from quadtree import update_quadtree
+from particle import make_particles, update_particles, get_args_for_particle_update, colors, radii, positions, masses
+from quadtree import update_quadtree, get_args_for_quadtree_update
 
 app.use_app('PyQt6')
 
@@ -27,33 +27,34 @@ class Canvas(app.Canvas):
 
         # === Initialize Gloo ===
         self.program = gloo.Program(vertex_shader, fragment_shader)
+        self.update_program()
 
         # === Initialize Timer ===
         self.timer = app.timer.Timer(interval=DT, connect=self.on_timer, start=True)
 
         self.show()
 
-    def update_program(self, color, pos, radius):
-        self.program['a_color'] = color
-        self.program['a_pos'] = pos
-        self.program['a_radius'] = radius
+    def update_program(self):
+        self.program['a_color'] = colors
+        self.program['a_pos'] = positions
+        self.program['a_radius'] = radii
+        self.program['u_HALF_WORLD_LENGTH'] = HALF_WORLD_LENGTH
         self.program['u_CamPos'] = self.cam.pos
         self.program['u_CamZoom'] = self.cam.zoom
 
     def on_timer(self, event):
         """
         update phase goes here. this runs every interval seconds, as defined in self.timer.
-        usual structure: 
-            - get dt from event.dt, which is returned by self.timer every time it calls this function.
-            - do your updates.
-            - call self.update() which implicitly runs self.on_draw(). dont call self.on_draw() directly; breaks game.
         """
-        dt = event.dt
+        self.dt = event.dt
         for key in self.pressed_keys:
-            self.cam.update(key, dt)
-        update_quadtree()
+            self.cam.update(key, self.dt)
+        update_particles(*get_args_for_particle_update(self.dt))
+        update_quadtree(*get_args_for_quadtree_update(positions, masses))
         self.update_program()
         self.update()
+        print(HALF_WORLD_LENGTH)
+        print(np.max(np.abs(positions)))
 
     def on_draw(self, event):
         """drawing phase updates go here"""
@@ -70,7 +71,7 @@ class Canvas(app.Canvas):
             self.pressed_keys.discard(event.key.name)
 
     def on_mouse_wheel(self, event):
-        self.cam.update_zoom(event.delta[1])
+        self.cam.update_zoom(event.delta[1], self.dt)
     
 
 if __name__ == "__main__":

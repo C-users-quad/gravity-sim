@@ -10,20 +10,22 @@ vertex_shader = (
 
     varying vec3 v_color;
 
-    void main() {
-        // sets world coords of particle point relative to the camera
-        vec2 cam_relative = (a_pos - u_CamPos) * u_CamZoom;
+    void main() 
+    {
+        // compute world position relative to camera
+        vec2 world_relative = a_pos - u_CamPos;
 
-        // transforms point pos in cam-relative world coords to opengl coords with +y going down.
-        vec2 ndc = vec2(cam_relative.x / u_HALF_WORLD_LENGTH, -cam_relative.y / u_HALF_WORLD_LENGTH);
+        // map to NDC [-1, 1] using zoom
+        vec2 ndc = world_relative / (u_HALF_WORLD_LENGTH / u_CamZoom);
 
-        // sets the position of the particle in opengl
-        gl_Position  = vec4(ndc, 0.0, 1.0);
+        // flip y if needed (OpenGL convention)
+        ndc.y = -ndc.y;
 
-        // sets the diameter of the particle
-        gl_PointSize = a_radius * u_CamZoom * 2;
+        gl_Position = vec4(ndc, 0.0, 1.0);
 
-        // sets the vertex color to the color passed in
+        // scale point size with zoom
+        gl_PointSize = a_radius * u_CamZoom * 2.0;
+
         v_color = a_color;
     }
     """

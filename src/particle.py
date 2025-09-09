@@ -1,6 +1,7 @@
 from settings import N, G, R, CENTRAL_PARTICLE_MASS, ORBITING_PARTICLE_MASS, MAX_UNIFORM_DISC_RADIUS, HALF_WORLD_LENGTH, np, njit, prange
 from utils import calculate_radius, initialize_velocity
 from collision import ccd_resolve
+from quadtree import query_bh, get_query_bh_args
 
 central_particle_r = calculate_radius(CENTRAL_PARTICLE_MASS)
 
@@ -19,31 +20,41 @@ accelerations = np.zeros((N + 1, 2), dtype=np.float32) # [ax, ay].
 
 def make_particles() -> None:
     """
-    initializes and creates n orbital particles + one central particle in a uniform disc.
+    Initialize N orbiting particles + one central particle in a uniform disc.
+    Sets positions and velocities so that orbits are roughly circular.
     """
-    particle_radii = [(0, 0)] # this first index represents the central particle.
-    max_r2 = MAX_UNIFORM_DISC_RADIUS*MAX_UNIFORM_DISC_RADIUS
-    min_r2 = central_particle_r*central_particle_r
-    for _ in range(N):
-        u = np.random.uniform(0.0, 1.0)
-        r = np.sqrt((max_r2 - min_r2) * u + min_r2)
-        theta = np.random.uniform(0, 2 * np.pi)
-        particle_radii.append((r, theta))
-    
-    cumulative_mass = [CENTRAL_PARTICLE_MASS]
-    for _ in range(N):
-        m_enclosed = cumulative_mass[-1] + ORBITING_PARTICLE_MASS
-        cumulative_mass.append(m_enclosed)
+    central_r = calculate_radius(CENTRAL_PARTICLE_MASS)
+    positions[0] = [0.0, 0.0]
+    velocities[0] = [0.0, 0.0]
 
-    for i, (r, theta) in enumerate(particle_radii):
+    for i in range(1, N+1):
+        # radius distributed uniformly in area
+        u = np.random.uniform(0.0, 1.0)
+        r = MAX_UNIFORM_DISC_RADIUS * np.sqrt(u)
+
+        theta = np.random.uniform(0, 2*np.pi)
+
         x = r * np.cos(theta)
         y = r * np.sin(theta)
-        positions[i] = [x, y]
 
-        v = initialize_velocity(x, y, cumulative_mass[i])
-        velocities[i] = v
+        positions[i] = np.array([x, y], dtype=np.float32)
 
-@njit
+        # mass enclosed proportional to area inside r
+        m_enclosed = CENTRAL_PARTICLE_MASS + ORBITING_PARTICLE_MASS * (r**2 / MAX_UNIFORM_DISC_RADIUS**2 * N)
+
+        # circular velocity magnitude
+        v_t = np.sqrt(G * m_enclosed / r).astype(np.float32)
+
+        # direction perpendicular to radius (counterclockwise)
+        direction = np.array([-y, x], dtype=np.float32)
+        norm = np.linalg.norm(direction)
+        if norm > 0:
+            direction /= norm
+        else:
+            direction[:] = 0.0
+
+        velocities[i] = direction * v_t
+
 def world_border_collisions(
         particle_index: int, direction: int,
         positions: np.ndarray, velocities: np.ndarray, radii: np.ndarray
@@ -75,31 +86,36 @@ def world_border_collisions(
             positions[particle_index, 1] = HALF_WORLD_LENGTH - radius
             velocities[particle_index, 1] *= -1
 
+
 @njit
 def apply_forces(
         particle_index: int, pseudo_particles: np.ndarray,
-        accelerations: np.ndarray, positions: np.ndarray, G: float
+        accelerations: np.ndarray, positions: np.ndarray, G: float, count: int
     ) -> None:
-    """
-    Applys forces to all particles.
-    Args:
-        particle_index (int): index of particle you are applying forces to
-        pseudo_particles (np.ndarray): 2d array representing barnes hut centers of mass for force approximations.
-        dt (float): delta time.
-        accelerations (np.ndarray): array of all particle accelerations.
-    """
     epsilon = 1.0
     if pseudo_particles.shape[0] == 0:
         return
-    ppx, ppy, ppm = pseudo_particles[:, 0], pseudo_particles[:, 1], pseudo_particles[:, 2]
-    dx = ppx - positions[particle_index, 0]
-    dy = ppy - positions[particle_index, 1]
-    d2 = dx*dx + dy*dy + epsilon
+    
+    px = positions[particle_index, 0]
+    py = positions[particle_index, 1]
 
-    accelerations[particle_index, 0] = np.sum(G * ppm * dx / (d2 * np.sqrt(d2)))
-    accelerations[particle_index, 1] = np.sum(G * ppm * dy / (d2 * np.sqrt(d2)))
+    ax = 0.0
+    ay = 0.0
 
-@njit
+    for i in range(count):
+        dx = pseudo_particles[i, 0] - px
+        dy = pseudo_particles[i, 1] - py
+        m = pseudo_particles[i, 2]
+
+        d2 = dx*dx + dy*dy + epsilon
+        inv_dist3 = 1.0 / (d2 * np.sqrt(d2))
+
+        ax += G * m * dx * inv_dist3
+        ay += G * m * dy * inv_dist3
+
+    accelerations[particle_index, 0] += ax
+    accelerations[particle_index, 1] += ay
+
 def update_position(
         particle_index: int, dt: float, positions: np.ndarray, velocities: np.ndarray, 
         accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float
@@ -109,47 +125,53 @@ def update_position(
     """
     # position update
     positions[particle_index, 0] += velocities[particle_index, 0] * dt + 0.5 * accelerations[particle_index, 0] * dt*dt
-    world_border_collisions(particle_index, 0, positions, velocities)
+    world_border_collisions(particle_index, 0, positions, velocities, radii)
 
     positions[particle_index, 1] += velocities[particle_index, 1] * dt + 0.5 * accelerations[particle_index, 1] * dt*dt
-    world_border_collisions(particle_index, 1, positions, velocities)
+    world_border_collisions(particle_index, 1, positions, velocities, radii)
 
     old_a = accelerations[particle_index]
     accelerations[particle_index, 0] = 0.0
     accelerations[particle_index, 1] = 0.0
 
     # force update
-    pseudo_particles = query_bh(particle_index)
-    apply_forces(particle_index, pseudo_particles, accelerations, positions, G)
+    px, py = positions[particle_index]
+    pseudo_particles, count = query_bh(*get_query_bh_args(px, py))
+    apply_forces(particle_index, pseudo_particles, accelerations, positions, G, count)
 
     # collision check
-    collision_candidates = get_neighbors(particle_index) # returns np.ndarray with elements candidate_index
-    for i in range(collision_candidates.shape[0]):
-        candidate_index = collision_candidates[i]
-        if candidate_index == particle_index:
-            continue
-        ccd_resolve(
-            particle_index, candidate_index, dt,
-            positions, velocities, radii, masses
-        )
+    # collision_candidates = get_neighbors(particle_index) # returns np.ndarray with elements candidate_index
+    # for i in range(collision_candidates.shape[0]):
+    #     candidate_index = collision_candidates[i]
+    #     if candidate_index == particle_index:
+    #         continue
+    #     ccd_resolve(
+    #         particle_index, candidate_index, dt,
+    #         positions, velocities, radii, masses
+    #     )
 
     velocities[particle_index] += 0.5 * (old_a + accelerations[particle_index]) * dt
 
-@njit
+
 def update_physics(
         particle_index: int, dt: float, positions: np.ndarray, velocities: np.ndarray, 
         accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float
     ) -> None:
+    update_position(
+        particle_index, dt, 
+        positions, velocities, accelerations, masses, radii, G
+    )
 
-    if particle_index != 0: # only update physics if its not the central particle
-        update_position(
-            particle_index, dt, 
-            positions, velocities, accelerations, masses, radii, G
-        )
 
-@njit
-def update_particle(particle_index: int, dt: float) -> None:
+def update_particle(particle_index, dt, positions, velocities, accelerations, masses, radii, G) -> None:
     update_physics(
         particle_index, dt, positions, velocities, 
         accelerations, masses, radii, G
     )
+
+def get_args_for_particle_update(dt: float):
+    return(dt, N, positions, velocities, accelerations, masses, radii, G)
+
+def update_particles(dt, N, positions, velocities, accelerations, masses, radii, G):
+    for i in range(1, N+1):
+        update_particle(i, dt, positions, velocities, accelerations, masses, radii, G)
