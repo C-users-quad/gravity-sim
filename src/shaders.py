@@ -4,26 +4,26 @@ vertex_shader = (
     attribute vec2 a_pos;
     attribute float a_radius;
 
-    uniform float u_HALF_WORLD_LENGTH;
     uniform vec2 u_CamPos;
     uniform float u_CamZoom;
+    uniform vec2 u_WindowSize;
 
     varying vec3 v_color;
 
-    void main() 
+    void main()
     {
-        // compute world position relative to camera
-        vec2 world_relative = a_pos - u_CamPos;
+        // Camera-relative world position
+        vec2 cam_relative = a_pos - u_CamPos;
 
-        // map to NDC [-1, 1] using zoom
-        vec2 ndc = world_relative / (u_HALF_WORLD_LENGTH / u_CamZoom);
+        // Scale by zoom (world units -> pixels)
+        vec2 pos_pixels = cam_relative * u_CamZoom;
 
-        // flip y if needed (OpenGL convention)
-        ndc.y = -ndc.y;
+        // Convert to NDC
+        vec2 ndc = pos_pixels / (u_WindowSize / 2.0);
 
         gl_Position = vec4(ndc, 0.0, 1.0);
 
-        // scale point size with zoom
+        // Point size in pixels
         gl_PointSize = a_radius * u_CamZoom * 2.0;
 
         v_color = a_color;

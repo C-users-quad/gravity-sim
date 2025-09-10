@@ -3,10 +3,10 @@ from settings import *
 class Camera:
     def __init__(self):
         self.zoom = 1.0
-        self.zoom_speed = 0.1
+        self.zoom_speed = 0.2
 
         self.pos = np.array([0.0, 0.0], dtype=np.float32)
-        self.pan_speed = 1000
+        self.pan_speed = 10
 
     def update_pos(self, key, dt):
         if key == "W": # up
@@ -22,5 +22,10 @@ class Camera:
         new_zoom = self.zoom + self.zoom_speed * event_y * dt
         self.zoom = min(MAX_ZOOM, max(new_zoom, MIN_ZOOM))
 
-    def update(self, key, dt):
-        self.update_pos(key, dt)
+    def update_speed(self, event_y, dt):
+        new_speed = self.pan_speed + 100 * event_y * dt
+        self.pan_speed = min(MAX_SPEED, max(new_speed, MIN_SPEED))
+
+    def update(self, pressed_keys, dt):
+        for key in pressed_keys:
+            self.update_pos(key, dt)

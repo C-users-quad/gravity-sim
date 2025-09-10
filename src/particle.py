@@ -1,4 +1,4 @@
-from settings import N, G, R, CENTRAL_PARTICLE_MASS, ORBITING_PARTICLE_MASS, MAX_UNIFORM_DISC_RADIUS, HALF_WORLD_LENGTH, np, njit, prange
+from settings import N, G, R, CENTRAL_PARTICLE_MASS, ORBITING_PARTICLE_MASS, MAX_UNIFORM_DISC_RADIUS, HALF_WORLD_LENGTH, np, njit, prange, math
 from utils import calculate_radius, initialize_velocity
 from collision import ccd_resolve
 from quadtree import query_bh, get_query_bh_args
@@ -23,14 +23,15 @@ def make_particles() -> None:
     Initialize N orbiting particles + one central particle in a uniform disc.
     Sets positions and velocities so that orbits are roughly circular.
     """
-    central_r = calculate_radius(CENTRAL_PARTICLE_MASS)
-    positions[0] = [0.0, 0.0]
+    positions[0] = [1.0, 1.0]
     velocities[0] = [0.0, 0.0]
 
+    r_min2 = central_particle_r
+    r_max2 = MAX_UNIFORM_DISC_RADIUS*MAX_UNIFORM_DISC_RADIUS
     for i in range(1, N+1):
         # radius distributed uniformly in area
         u = np.random.uniform(0.0, 1.0)
-        r = MAX_UNIFORM_DISC_RADIUS * np.sqrt(u)
+        r = np.sqrt((r_max2 - r_min2) * u + r_min2)
 
         theta = np.random.uniform(0, 2*np.pi)
 
@@ -40,20 +41,9 @@ def make_particles() -> None:
         positions[i] = np.array([x, y], dtype=np.float32)
 
         # mass enclosed proportional to area inside r
-        m_enclosed = CENTRAL_PARTICLE_MASS + ORBITING_PARTICLE_MASS * (r**2 / MAX_UNIFORM_DISC_RADIUS**2 * N)
+        m_enclosed = CENTRAL_PARTICLE_MASS
 
-        # circular velocity magnitude
-        v_t = np.sqrt(G * m_enclosed / r).astype(np.float32)
-
-        # direction perpendicular to radius (counterclockwise)
-        direction = np.array([-y, x], dtype=np.float32)
-        norm = np.linalg.norm(direction)
-        if norm > 0:
-            direction /= norm
-        else:
-            direction[:] = 0.0
-
-        velocities[i] = direction * v_t
+        velocities[i] = initialize_velocity(x, y, m_enclosed)
 
 def world_border_collisions(
         particle_index: int, direction: int,
@@ -86,7 +76,6 @@ def world_border_collisions(
             positions[particle_index, 1] = HALF_WORLD_LENGTH - radius
             velocities[particle_index, 1] *= -1
 
-
 @njit
 def apply_forces(
         particle_index: int, pseudo_particles: np.ndarray,
@@ -108,7 +97,7 @@ def apply_forces(
         m = pseudo_particles[i, 2]
 
         d2 = dx*dx + dy*dy + epsilon
-        inv_dist3 = 1.0 / (d2 * np.sqrt(d2))
+        inv_dist3 = 1.0 / (d2 * math.sqrt(d2))
 
         ax += G * m * dx * inv_dist3
         ay += G * m * dy * inv_dist3
@@ -137,6 +126,7 @@ def update_position(
     # force update
     px, py = positions[particle_index]
     pseudo_particles, count = query_bh(*get_query_bh_args(px, py))
+    print(count)
     apply_forces(particle_index, pseudo_particles, accelerations, positions, G, count)
 
     # collision check

@@ -61,6 +61,10 @@ def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray,
             boundaries: np.ndarray, centers_of_mass: np.ndarray, px: float, py: float,
             pseudo_particles_count: np.ndarray, masses: np.ndarray, children: np.ndarray
     ) -> np.ndarray:
+    if node_index == 0:
+        pseudo_particles_count[0] = 0
+    else:
+        print("e2")
     if s2[node_index] == -1:
         _, _, width, height = boundaries[node_index]
         s = max(width, height)
@@ -81,7 +85,7 @@ def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray,
             return pseudo_particles, pseudo_particles_count[0]
         for i in range(4):
             c = children[node_index, i]
-            if masses[c]:
+            if masses[c] != -1:
                 query_bh(c, pseudo_particles, s2, boundaries, centers_of_mass, px, py,
                          pseudo_particles_count, masses, children)
                 
