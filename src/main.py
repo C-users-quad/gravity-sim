@@ -48,8 +48,8 @@ class Canvas(app.Canvas):
         """
         self.dt = event.dt
         self.cam.update(self.pressed_keys, self.dt)
-        update_particles(*get_args_for_particle_update(self.dt))
         update_quadtree(*get_args_for_quadtree_update(positions, masses))
+        update_particles(*get_args_for_particle_update(self.dt))
         self.update_program()
         self.update()
 

@@ -23,7 +23,7 @@ def make_particles() -> None:
     Initialize N orbiting particles + one central particle in a uniform disc.
     Sets positions and velocities so that orbits are roughly circular.
     """
-    positions[0] = [1.0, 1.0]
+    positions[0] = [0.0, 0.0]
     velocities[0] = [0.0, 0.0]
 
     r_min2 = central_particle_r*central_particle_r
@@ -45,6 +45,7 @@ def make_particles() -> None:
 
         velocities[i] = initialize_velocity(x, y, m_enclosed)
 
+@njit
 def world_border_collisions(
         particle_index: int, direction: int,
         positions: np.ndarray, velocities: np.ndarray, radii: np.ndarray
@@ -105,9 +106,11 @@ def apply_forces(
     accelerations[particle_index, 0] += ax
     accelerations[particle_index, 1] += ay
 
+@njit
 def update_position(
         particle_index: int, dt: float, positions: np.ndarray, velocities: np.ndarray, 
-        accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float
+        accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float, 
+        query_bh_args: tuple
     ) -> None:
     """
     Uses velocity verlet integration to update particle positions, velocities, and accelerations.
@@ -125,7 +128,8 @@ def update_position(
 
     # force update
     px, py = positions[particle_index]
-    pseudo_particles, count = query_bh(*get_query_bh_args(px, py))
+    pseudo_particles, count = query_bh(*query_bh_args, px, py)
+
     apply_forces(particle_index, pseudo_particles, accelerations, positions, G, count)
 
     # collision check
@@ -141,26 +145,28 @@ def update_position(
 
     velocities[particle_index] += 0.5 * (old_a + accelerations[particle_index]) * dt
 
-
+@njit
 def update_physics(
         particle_index: int, dt: float, positions: np.ndarray, velocities: np.ndarray, 
-        accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float
+        accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float,
+        query_bh_args: tuple
     ) -> None:
     update_position(
-        particle_index, dt, 
-        positions, velocities, accelerations, masses, radii, G
+        particle_index, dt, positions, velocities, 
+        accelerations, masses, radii, G, query_bh_args
     )
 
-
-def update_particle(particle_index, dt, positions, velocities, accelerations, masses, radii, G) -> None:
+@njit
+def update_particle(particle_index, dt, positions, velocities, accelerations, masses, radii, G, query_bh_args) -> None:
     update_physics(
         particle_index, dt, positions, velocities, 
-        accelerations, masses, radii, G
+        accelerations, masses, radii, G, query_bh_args
     )
 
 def get_args_for_particle_update(dt: float):
-    return(dt, N, positions, velocities, accelerations, masses, radii, G)
+    return(dt, N, positions, velocities, accelerations, masses, radii, G, get_query_bh_args())
 
-def update_particles(dt, N, positions, velocities, accelerations, masses, radii, G):
+@njit
+def update_particles(dt, N, positions, velocities, accelerations, masses, radii, G, query_bh_args):
     for i in range(1, N+1):
-        update_particle(i, dt, positions, velocities, accelerations, masses, radii, G)
+        update_particle(i, dt, positions, velocities, accelerations, masses, radii, G, query_bh_args)

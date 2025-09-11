@@ -2,7 +2,7 @@ from settings import *
 from collision import point_in_boundary
 
 # treat -1 like none gng
-MAX_LEVEL = 7
+MAX_LEVEL = 6
 CAPACITY = 64
 theta = 0.75
 THETA2 = theta*theta
@@ -15,60 +15,77 @@ centers_of_mass = -np.ones((MAX_NODES, 2),        dtype=np.float32)
 s2              = -np.ones((MAX_NODES),           dtype=np.float32) # s in s2/d2 < theta2 check for barnes hut queries.
 pseudo_particles= -np.ones((MAX_NODES, 3),        dtype=np.float32)
 pseudo_particles_count = np.zeros(1,              dtype=np.int32  )
-next_available_index = np.zeros(1,                dtype=np.int32  )
+next_available_index = np.ones(1,                dtype=np.int32  )
 
 @njit
 def calculate_CoM(node_index: int, tree_masses: np.ndarray, p_masses: np.ndarray, 
                   particles: np.ndarray, centers_of_mass: np.ndarray, children: np.ndarray, 
                   num_p_in_nodes: np.ndarray, p_positions: np.ndarray
     ) -> tuple[float, float, float]:
-    num_p_in_node = num_p_in_nodes[node_index]
+    if node_index < 0 or node_index >= MAX_NODES:
+        return 0.0, 0.0, 0.0
 
     if children[node_index, 0] == -1:  # leaf node
         mass_sum = 0.0
         cx = 0.0
         cy = 0.0
-        for i in range(num_p_in_node):
+        for i in range(num_p_in_nodes[node_index]):
             idx = particles[node_index, i]
             m = p_masses[idx]
             mass_sum += m
             cx += m * p_positions[idx, 0]
             cy += m * p_positions[idx, 1]
-        if mass_sum > 0:
+        if mass_sum > 0.0:
             centers_of_mass[node_index, 0] = cx / mass_sum
             centers_of_mass[node_index, 1] = cy / mass_sum
+        else:
+            centers_of_mass[node_index, 0] = 0.0
+            centers_of_mass[node_index, 1] = 0.0
         tree_masses[node_index] = mass_sum
-        return centers_of_mass[node_index, 0], centers_of_mass[node_index, 1], tree_masses[node_index]
+        return centers_of_mass[node_index, 0], centers_of_mass[node_index, 1], mass_sum
 
+    # Internal Node
+    mass_sum = 0.0
+    cx_sum = 0.0
+    cy_sum = 0.0
     for c in children[node_index]:
-        cx, cy, mass = calculate_CoM(c, tree_masses, p_masses, particles, 
-                                     centers_of_mass, children, num_p_in_nodes, p_positions)
-        tree_masses[node_index] += mass
-        centers_of_mass[node_index, 0] += mass * cx
-        centers_of_mass[node_index, 1] += mass * cy
-    if tree_masses[node_index] != -1:
-        centers_of_mass[node_index, 0] /= tree_masses[node_index]
-        centers_of_mass[node_index, 1] /= tree_masses[node_index]
+        if c >= 0:
+            cx, cy, mass = calculate_CoM(c, tree_masses, p_masses, particles, 
+                                        centers_of_mass, children, num_p_in_nodes, p_positions)
+            mass_sum += mass
+            cx_sum += mass * cx
+            cy_sum += mass * cy
 
-    return centers_of_mass[node_index, 0], centers_of_mass[node_index, 1], tree_masses[node_index]
+    if mass_sum > 0.0:
+        centers_of_mass[node_index, 0] = cx_sum / mass_sum
+        centers_of_mass[node_index, 1] = cy_sum / mass_sum
+    else:
+        centers_of_mass[node_index, 0] = 0.0
+        centers_of_mass[node_index, 1] = 0.0
+    tree_masses[node_index] = mass_sum
 
-def get_query_bh_args(px, py):
+    if node_index == 0:
+        print("Root COM mass sum:", mass_sum)
+
+
+    return centers_of_mass[node_index, 0], centers_of_mass[node_index, 1], mass_sum
+
+def get_query_bh_args():
     return(0, pseudo_particles, s2, boundaries, centers_of_mass, 
-           px, py, pseudo_particles_count, masses, children)
+           pseudo_particles_count, masses, children)
 
 @njit
 def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray, 
-            boundaries: np.ndarray, centers_of_mass: np.ndarray, px: float, py: float,
-            pseudo_particles_count: np.ndarray, masses: np.ndarray, children: np.ndarray
+            boundaries: np.ndarray, centers_of_mass: np.ndarray, pseudo_particles_count: np.ndarray, 
+            masses: np.ndarray, children: np.ndarray, px: float, py: float
     ) -> np.ndarray:
     if node_index == 0:
         pseudo_particles_count[0] = 0
-    else:
-        print("e2")
     if s2[node_index] == -1:
         _, _, width, height = boundaries[node_index]
         s = max(width, height)
-        _s2 = s2[node_index] = s*s
+        s2[node_index] = s*s
+    _s2 = s2[node_index]
     x_com, y_com = centers_of_mass[node_index]
     dx = x_com - px
     dy = y_com - py
@@ -76,18 +93,20 @@ def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray,
 
     if _s2 < THETA2 * d2 or children[node_index, 0] == -1:
         if masses[node_index] > 0:
-            pseudo_particles[pseudo_particles_count, 0] = x_com
-            pseudo_particles[pseudo_particles_count, 1] = y_com
-            pseudo_particles[pseudo_particles_count, 2] = masses[node_index]
+            pseudo_particles[pseudo_particles_count[0], 0] = x_com
+            pseudo_particles[pseudo_particles_count[0], 1] = y_com
+            pseudo_particles[pseudo_particles_count[0], 2] = masses[node_index]
             pseudo_particles_count[0] += 1
     else:
         if children[node_index, 0] == -1:
             return pseudo_particles, pseudo_particles_count[0]
         for i in range(4):
             c = children[node_index, i]
-            if masses[c] != -1:
-                query_bh(c, pseudo_particles, s2, boundaries, centers_of_mass, px, py,
-                         pseudo_particles_count, masses, children)
+            if c == -1:
+                continue
+            if masses[c] > 0:
+                query_bh(c, pseudo_particles, s2, boundaries, centers_of_mass,
+                         pseudo_particles_count, masses, children, px, py)
                 
     return pseudo_particles, pseudo_particles_count[0]
 
@@ -95,23 +114,24 @@ def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray,
 def clear(boundaries: np.ndarray, particles: np.ndarray, num_p_in_nodes: np.ndarray, 
         children: np.ndarray, masses: np.ndarray, centers_of_mass: np.ndarray, 
         s2: np.ndarray, next_available_index: np.ndarray, pseudo_particles: np.ndarray,
-        pseudo_particles_count: np.ndarray
+        pseudo_particles_count: np.ndarray, min_x, min_y, max_x, max_y
     ) -> None:
     boundaries.fill(-1)
     particles.fill(-1)
     num_p_in_nodes.fill(0)
     children.fill(-1)
-    masses.fill(-1)
-    centers_of_mass.fill(-1)
+    masses.fill(0.0)
+    centers_of_mass.fill(0.0)
     s2.fill(-1)
     pseudo_particles.fill(-1)
     pseudo_particles_count.fill(0)
-    next_available_index.fill(0)
+    next_available_index.fill(1)
     # reset root node boundary
-    boundaries[0, 0] =  -HALF_WORLD_LENGTH
-    boundaries[0, 1] =  -HALF_WORLD_LENGTH
-    boundaries[0, 2] = 2*HALF_WORLD_LENGTH
-    boundaries[0, 3] = 2*HALF_WORLD_LENGTH
+    padding = 1e-5
+    boundaries[0, 0] = min_x - padding
+    boundaries[0, 1] = min_y - padding
+    boundaries[0, 2] = (max_x - min_x) + 2*padding
+    boundaries[0, 3] = (max_y - min_y) + 2*padding
 
 @njit
 def subdivide(node_index: int, boundaries: np.ndarray, 
@@ -150,7 +170,8 @@ def subdivide(node_index: int, boundaries: np.ndarray,
 @njit # when first calling insert, set node index to zero, level to zero.
 def insert(node_index: int, boundaries: np.ndarray, num_p_in_nodes: np.ndarray, 
            particles: np.ndarray, children: np.ndarray, particle_index: int, 
-           next_available_index: np.ndarray, px: float, py: float, level: int
+           next_available_index: np.ndarray, px: float, py: float, particle_positions: np.ndarray, 
+           level: int
     ) -> int: # return 0 = ok, -1 = overflow.
     if not point_in_boundary(boundaries[node_index], px, py):
         return 0
@@ -167,30 +188,35 @@ def insert(node_index: int, boundaries: np.ndarray, num_p_in_nodes: np.ndarray,
         if next_available_index[0]+3 < MAX_NODES:
             subdivide(node_index, boundaries, children, next_available_index)
 
-    for c in children[node_index]:
-        if c == -1:
-            continue
-        if point_in_boundary(boundaries[c], px, py):
-            return insert(c, boundaries, num_p_in_nodes, particles, children,
-                            particle_index, next_available_index, px, py, level+1)
+    for i in range(num_p_in_nodes[node_index]):
+        idx = particles[node_index, i]
+        px, py = particle_positions[idx]
+        for c in children[node_index]:
+            if point_in_boundary(boundaries[c], px, py):
+                insert(c, boundaries, num_p_in_nodes, particles, children, idx, next_available_index,
+                       px, py, particle_positions, level+1)
+    num_p_in_nodes[node_index] = 0
 
     return 0
 
 def get_args_for_quadtree_update(particle_positions, particle_masses):
+    min_x, min_y = particle_positions.min(axis=0)
+    max_x, max_y = particle_positions.max(axis=0)
     return (particle_positions, particle_masses, boundaries, particles, num_p_in_nodes,
     children, masses, centers_of_mass, s2, pseudo_particles, pseudo_particles_count,
-    next_available_index)
+    next_available_index, min_x, min_y, max_x, max_y)
 
 @njit
 def update_quadtree(particle_positions, particle_masses, boundaries, particles, num_p_in_nodes,
     children, masses, centers_of_mass, s2, pseudo_particles, pseudo_particles_count,
-    next_available_index):
+    next_available_index, min_x, min_y, max_x, max_y):
     clear(boundaries, particles, num_p_in_nodes, 
-        children, masses, centers_of_mass, s2, 
-        next_available_index, pseudo_particles, pseudo_particles_count)
-    calculate_CoM(0, masses, particle_masses, particles, centers_of_mass, 
-                  children, num_p_in_nodes, particle_positions)
+        children, masses, centers_of_mass, s2, next_available_index, 
+        pseudo_particles, pseudo_particles_count, min_x, min_y, max_x, max_y)
     for i in range(N+1):
         px, py = particle_positions[i]
         insert(0, boundaries, num_p_in_nodes, particles, 
-               children, i, next_available_index, px, py, 0)
+               children, i, next_available_index, px, py, particle_positions, 1)
+    calculate_CoM(0, masses, particle_masses, particles, centers_of_mass, 
+                  children, num_p_in_nodes, particle_positions)
+    print("tree root mass", masses[0], "sum particles", particle_masses.sum())  # note use separate array name for particle masses if shadowed

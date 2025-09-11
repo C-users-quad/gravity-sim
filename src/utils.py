@@ -10,7 +10,7 @@ def initialize_velocity(x, y, m_enclosed):
 
     if r == 0:
         return np.zeros(2)
-    
+
     v_t = np.sqrt(G * m_enclosed / r)
 
     direction = np.array([-pos[1], pos[0]], dtype=np.float64)

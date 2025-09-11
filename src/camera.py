@@ -3,7 +3,7 @@ from settings import *
 class Camera:
     def __init__(self):
         self.zoom = 1.0
-        self.zoom_speed = 0.2
+        self.zoom_speed = 1
 
         self.pos = np.array([0.0, 0.0], dtype=np.float32)
         self.pan_speed = 100
