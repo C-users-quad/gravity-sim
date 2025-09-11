@@ -52,7 +52,6 @@ class Canvas(app.Canvas):
         update_quadtree(*get_args_for_quadtree_update(positions, masses))
         self.update_program()
         self.update()
-        print(self.cam.pos)
 
     def on_draw(self, event):
         """drawing phase updates go here"""
@@ -72,7 +71,6 @@ class Canvas(app.Canvas):
         mods = event.modifiers
         if 'Control' in mods:
             self.cam.update_speed(event.delta[1], self.dt)
-            print(self.cam.pan_speed)
         else:
             self.cam.update_zoom(event.delta[1], self.dt)
 

@@ -75,7 +75,7 @@ def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray,
     d2 = dx*dx + dy*dy + 1e-5
 
     if _s2 < THETA2 * d2 or children[node_index, 0] == -1:
-        if masses[node_index]:
+        if masses[node_index] > 0:
             pseudo_particles[pseudo_particles_count, 0] = x_com
             pseudo_particles[pseudo_particles_count, 1] = y_com
             pseudo_particles[pseudo_particles_count, 2] = masses[node_index]
@@ -107,6 +107,11 @@ def clear(boundaries: np.ndarray, particles: np.ndarray, num_p_in_nodes: np.ndar
     pseudo_particles.fill(-1)
     pseudo_particles_count.fill(0)
     next_available_index.fill(0)
+    # reset root node boundary
+    boundaries[0, 0] =  -HALF_WORLD_LENGTH
+    boundaries[0, 1] =  -HALF_WORLD_LENGTH
+    boundaries[0, 2] = 2*HALF_WORLD_LENGTH
+    boundaries[0, 3] = 2*HALF_WORLD_LENGTH
 
 @njit
 def subdivide(node_index: int, boundaries: np.ndarray, 

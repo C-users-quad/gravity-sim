@@ -26,7 +26,7 @@ def make_particles() -> None:
     positions[0] = [1.0, 1.0]
     velocities[0] = [0.0, 0.0]
 
-    r_min2 = central_particle_r
+    r_min2 = central_particle_r*central_particle_r
     r_max2 = MAX_UNIFORM_DISC_RADIUS*MAX_UNIFORM_DISC_RADIUS
     for i in range(1, N+1):
         # radius distributed uniformly in area
@@ -126,7 +126,6 @@ def update_position(
     # force update
     px, py = positions[particle_index]
     pseudo_particles, count = query_bh(*get_query_bh_args(px, py))
-    print(count)
     apply_forces(particle_index, pseudo_particles, accelerations, positions, G, count)
 
     # collision check

@@ -20,6 +20,7 @@ vertex_shader = (
 
         // Convert to NDC
         vec2 ndc = pos_pixels / (u_WindowSize / 2.0);
+        ndc.y = -ndc.y;
 
         gl_Position = vec4(ndc, 0.0, 1.0);
 

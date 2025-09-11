@@ -6,7 +6,7 @@ class Camera:
         self.zoom_speed = 0.2
 
         self.pos = np.array([0.0, 0.0], dtype=np.float32)
-        self.pan_speed = 10
+        self.pan_speed = 100
 
     def update_pos(self, key, dt):
         if key == "W": # up
