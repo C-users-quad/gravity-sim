@@ -16,7 +16,7 @@ class Canvas(app.Canvas):
         """initializes and shows the window with a size and title."""
 
         # === Initialize Window ===
-        super().__init__(size=(WINDOW_WIDTH, WINDOW_HEIGHT), title="vispy canvas", keys='interactive')
+        super().__init__(size=(WINDOW_WIDTH, WINDOW_HEIGHT), title="2d n-body", keys='interactive')
 
         # === Initialize Camera ===
         self.cam = Camera()
@@ -25,19 +25,22 @@ class Canvas(app.Canvas):
         # === Initialize Particles ===
         make_particles()
 
+        # === Initialize Quadtree ===
+        update_quadtree(*get_args_for_quadtree_update(positions, masses))
+
         # === Initialize Gloo ===
         self.program = gloo.Program(vertex_shader, fragment_shader)
         self.update_program()
+        self.program['a_color'] = colors
+        self.program['a_radius'] = radii
 
         # === Initialize Timer ===
-        self.timer = app.timer.Timer(interval=DT, connect=self.on_timer, start=True)
+        self.timer = app.timer.Timer(interval=1/60, connect=self.on_timer, start=True)
 
         self.show()
 
     def update_program(self):
-        self.program['a_color'] = colors
         self.program['a_pos'] = positions
-        self.program['a_radius'] = radii
         self.program['u_CamPos'] = self.cam.pos
         self.program['u_CamZoom'] = self.cam.zoom
         self.program['u_WindowSize'] = self.size
@@ -48,8 +51,10 @@ class Canvas(app.Canvas):
         """
         self.dt = event.dt
         self.cam.update(self.pressed_keys, self.dt)
+        
+        update_particles(*get_args_for_particle_update(DT))
         update_quadtree(*get_args_for_quadtree_update(positions, masses))
-        update_particles(*get_args_for_particle_update(self.dt))
+
         self.update_program()
         self.update()
 
@@ -72,7 +77,7 @@ class Canvas(app.Canvas):
         if 'Control' in mods:
             self.cam.update_speed(event.delta[1], self.dt)
         else:
-            self.cam.update_zoom(event.delta[1], self.dt)
+            self.cam.update_zoom(event.delta[1])
 
 if __name__ == "__main__":
     c = Canvas()

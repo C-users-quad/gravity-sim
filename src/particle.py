@@ -1,6 +1,6 @@
-from settings import N, G, R, CENTRAL_PARTICLE_MASS, ORBITING_PARTICLE_MASS, MAX_UNIFORM_DISC_RADIUS, HALF_WORLD_LENGTH, np, njit, prange, math
+from settings import N, G, R, DT, CENTRAL_PARTICLE_MASS, ORBITING_PARTICLE_MASS, MAX_UNIFORM_DISC_RADIUS, HALF_WORLD_LENGTH, np, njit, prange, math
 from utils import calculate_radius, initialize_velocity
-from collision import ccd_resolve
+from collision import ccd_resolve, point_in_boundary
 from quadtree import query_bh, get_query_bh_args
 
 central_particle_r = calculate_radius(CENTRAL_PARTICLE_MASS)
@@ -83,9 +83,9 @@ def apply_forces(
         accelerations: np.ndarray, positions: np.ndarray, G: float, count: int
     ) -> None:
     epsilon = 1.0
-    if pseudo_particles.shape[0] == 0:
+    if count == 0:
         return
-    
+
     px = positions[particle_index, 0]
     py = positions[particle_index, 1]
 
@@ -115,6 +115,8 @@ def update_position(
     """
     Uses velocity verlet integration to update particle positions, velocities, and accelerations.
     """
+    if dt > DT:
+        dt = DT
     # position update
     positions[particle_index, 0] += velocities[particle_index, 0] * dt + 0.5 * accelerations[particle_index, 0] * dt*dt
     world_border_collisions(particle_index, 0, positions, velocities, radii)
@@ -122,7 +124,7 @@ def update_position(
     positions[particle_index, 1] += velocities[particle_index, 1] * dt + 0.5 * accelerations[particle_index, 1] * dt*dt
     world_border_collisions(particle_index, 1, positions, velocities, radii)
 
-    old_a = accelerations[particle_index]
+    old_a = accelerations[particle_index].copy()
     accelerations[particle_index, 0] = 0.0
     accelerations[particle_index, 1] = 0.0
 
@@ -132,16 +134,14 @@ def update_position(
 
     apply_forces(particle_index, pseudo_particles, accelerations, positions, G, count)
 
-    # collision check
-    # collision_candidates = get_neighbors(particle_index) # returns np.ndarray with elements candidate_index
-    # for i in range(collision_candidates.shape[0]):
-    #     candidate_index = collision_candidates[i]
-    #     if candidate_index == particle_index:
-    #         continue
-    #     ccd_resolve(
-    #         particle_index, candidate_index, dt,
-    #         positions, velocities, radii, masses
-    #     )
+    # collision check between orbitals and central
+    near_central = point_in_boundary((-500, -500, 1000, 1000), px, py)
+
+    if near_central:
+        ccd_resolve(
+            particle_index, 0, dt,
+            positions, velocities, radii, masses
+        )
 
     velocities[particle_index] += 0.5 * (old_a + accelerations[particle_index]) * dt
 

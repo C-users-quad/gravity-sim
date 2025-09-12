@@ -36,7 +36,7 @@ def ccd_resolve(
     # p_dot_p is effectively distance squared. if its less than R2, then theres a collision at t=0.
     p_dot_p = px*px + py*py
     if p_dot_p < R2:
-        resolve_elastic_collision(particle_index, candidate_index, 0, positions, velocities, masses)
+        resolve_collision(particle_index, candidate_index, 0, positions, velocities, radii)
         return
     
     # if theres no collision already and velocities are zero, then there wont be a collision.
@@ -65,24 +65,22 @@ def ccd_resolve(
         t = t2
 
     if t != dt + 1.0:
-        resolve_elastic_collision(particle_index, candidate_index, t, positions, velocities, masses)
+        resolve_collision(particle_index, candidate_index, t, positions, velocities, radii)
 
 @njit
-def resolve_elastic_collision(particle_index: int, candidate_index: int, t: float, 
-        positions: np.ndarray, velocities: np.ndarray, masses: np.ndarray
+def resolve_collision(particle_index: int, candidate_index: int, t: float, 
+        positions: np.ndarray, velocities: np.ndarray, radii: np.ndarray
     ) -> None:
     """
     Resolve 2D elastic collision between particle i and j at time t.
     Args:
         particle_index (int): index of the particle you are checking collisions for
         candidate_index (int) index of the other particle you are checking collisions for
-        t (float): the time of collision between particles i and j.
+        t (float): the time of collision between particles i and j
         positions (np.ndarray): positions of all particles
         velocities (np.ndarray): velocities of all particles
+        radii (np.ndarray): radii of all particles
     """
-    p1_x, p1_y = positions[particle_index]
-    p2_x, p2_y = positions[candidate_index]
-
     p1_vx, p1_vy = velocities[particle_index]
     p2_vx, p2_vy = velocities[candidate_index]
 
@@ -92,27 +90,22 @@ def resolve_elastic_collision(particle_index: int, candidate_index: int, t: floa
     positions[candidate_index, 0] += p2_vx * t
     positions[candidate_index, 1] += p2_vy * t
 
-    # relative position & velocity
+    # relative position
+    p1_x, p1_y = positions[particle_index]
+    p2_x, p2_y = positions[candidate_index]
     dx = p1_x - p2_x
     dy = p1_y - p2_y
-    dvx = p1_vx - p2_vx
-    dvy = p1_vy - p2_vy
 
     dist2 = dx*dx + dy*dy
     if dist2 == 0.0:
         return
 
-    m1 = masses[particle_index]
-    m2 = masses[candidate_index]
-
-    v_dot_p = dvx*dx + dvy*dy
-    coeff = 2.0 * v_dot_p / ((m1 + m2) * dist2)
-
-    # update velocities
-    velocities[particle_index, 0] += coeff * m2 * dx
-    velocities[particle_index, 1] += coeff * m2 * dy
-    velocities[candidate_index, 0] -= coeff * m1 * dx
-    velocities[candidate_index, 1] -= coeff * m1 * dy
+    dist = np.sqrt(dist2)
+    overlap = (radii[particle_index] + radii[candidate_index]) - dist
+    if overlap > 0:
+        nx, ny = dx / dist, dy / dist
+        positions[particle_index, 0] += nx * overlap
+        positions[particle_index, 1] += ny * overlap
 
 @njit
 def point_in_boundary(boundary: np.ndarray, px: float, py: float) -> bool:
