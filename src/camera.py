@@ -21,8 +21,8 @@ class Camera:
         self.zoom *= max(MIN_ZOOM, 1.1 ** event_y)
 
     def update_speed(self, event_y, dt):
-        new_speed = self.pan_speed + 100 * event_y * dt
-        self.pan_speed = min(MAX_SPEED, max(new_speed, MIN_SPEED))
+        self.pan_speed *= 1.1 ** event_y
+        self.pan_speed = min(MAX_SPEED, max(self.pan_speed, MIN_SPEED))
 
     def update(self, pressed_keys, dt):
         for key in pressed_keys:

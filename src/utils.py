@@ -19,13 +19,21 @@ def initialize_velocity(x, y, m_enclosed):
     v = v_t * direction
     return v
 
-def interpolate(old_positions, current_positions, accumulator, render_positions):
+def interpolate(accumulator: int, value: Sequence[float], old_value: Sequence[float]
+    ) -> Sequence[float]:
     """
-    DEPRECATED...
-    Keeps visuals smooth even if physics is slow by interpolating old and current positions
+    Takes in a value and interpolates it between it and its old value one update before the present
+
+    Args:
+        alpha (float): factor of interpolation
+        dt_physics (float): dt of physics updates
+        accumulator (float): dt of frame_dt - num_physics_updates * dt_physics
+        value (Sequence[float]): current state of value to interpolate
+        old_value (Sequence[float]): state of value one update before current
+
     Returns:
-        render_positions (np.ndarray) : the rendering positions for the particles
+        Sequence[float]: interpolated value
     """
-    alpha = accumulator / DT
-    render_positions[:] = old_positions * (1 - alpha) + current_positions * alpha
-    return render_positions
+    alpha = accumulator / DT_PHYSICS
+    interp_value = old_value + (value - old_value) * alpha
+    return interp_value

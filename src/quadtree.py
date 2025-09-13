@@ -3,7 +3,7 @@ from collision import point_in_boundary
 
 # treat -1 like none gng
 MAX_LEVEL = 6
-CAPACITY = 64
+CAPACITY = 128
 theta = 0.75
 THETA2 = theta*theta
 boundaries      = -np.ones((MAX_NODES, 4),        dtype=np.float32) # [left, top, width, height]
@@ -90,7 +90,7 @@ def get_query_bh_args():
 def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray, 
         boundaries: np.ndarray, centers_of_mass: np.ndarray, pseudo_particles_count: np.ndarray, 
         masses: np.ndarray, children: np.ndarray, px: float, py: float
-    ) -> tuple[np.ndarray, int]:
+    ) -> int:
     """
     Uses the positions of nodes relative to the queried 
     particle in order to approximate forces with pseudo particles.
@@ -98,35 +98,40 @@ def query_bh(node_index: int, pseudo_particles: np.ndarray, s2: np.ndarray,
         pseudo_particles,count (tuple[np.ndarray, int]) : An array of pseudo particles and a count that 
         specifies how many should be considered by the querying particle.
     """
-    if node_index == 0:
-        pseudo_particles_count[0] = 0
-    if s2[node_index] == -1:
-        _, _, width, height = boundaries[node_index]
-        s = max(width, height)
-        s2[node_index] = s*s
-    _s2 = s2[node_index]
-    x_com, y_com = centers_of_mass[node_index]
-    dx = x_com - px
-    dy = y_com - py
-    d2 = dx*dx + dy*dy + 1e-5
+    stack = np.empty(MAX_NODES, dtype=np.int32) # list of node indices
+    stack_pointer = 0 # current size of stack
+    
+    pseudo_particles_count[0] = 0
+    stack[stack_pointer] = 0
+    stack_pointer += 1 
+    
+    while stack_pointer > 0:
+        stack_pointer -= 1
+        node_index = stack[stack_pointer]
 
-    if _s2 < THETA2 * d2 or children[node_index, 0] == -1:
-        if masses[node_index] > 0:
-            pseudo_particles[pseudo_particles_count[0], 0] = x_com
-            pseudo_particles[pseudo_particles_count[0], 1] = y_com
-            pseudo_particles[pseudo_particles_count[0], 2] = masses[node_index]
-            pseudo_particles_count[0] += 1
-    else:
-        if children[node_index, 0] == -1:
-            return pseudo_particles, pseudo_particles_count[0]
-        for i in range(4):
-            c = children[node_index, i]
-            if c == -1:
-                continue
-            if masses[c] > 0:
-                query_bh(c, pseudo_particles, s2, boundaries, centers_of_mass,
-                         pseudo_particles_count, masses, children, px, py)
-                
+        if s2[node_index] == -1:
+            _, _, width, height = boundaries[node_index]
+            s = max(width, height)
+            s2[node_index] = s*s
+        _s2 = s2[node_index]
+        x_com, y_com = centers_of_mass[node_index]
+        dx = x_com - px
+        dy = y_com - py
+        d2 = dx*dx + dy*dy + 1e-5
+
+        if _s2 < THETA2 * d2 or children[node_index, 0] == -1:
+            if masses[node_index] > 0:
+                pseudo_particles[pseudo_particles_count[0], 0] = x_com
+                pseudo_particles[pseudo_particles_count[0], 1] = y_com
+                pseudo_particles[pseudo_particles_count[0], 2] = masses[node_index]
+                pseudo_particles_count[0] += 1
+        else:
+            for i in range(3, -1, -1):
+                c = children[node_index, i]
+                if c != -1 and masses[c] > 0:
+                    stack[stack_pointer] = c
+                    stack_pointer += 1
+                    
     return pseudo_particles, pseudo_particles_count[0]
 
 @njit

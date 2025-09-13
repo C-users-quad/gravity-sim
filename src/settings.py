@@ -7,10 +7,14 @@ import math
 import time
 
 # general game values
-N = 7500 # num orbital particles
+N = 10000 # num orbital particles
 WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600
 HALF_WORLD_LENGTH = N * 2 # the world is a square with side lengths HALF_WORLD_LENGTH * 2 centered at the origin.
-DT = 0.016 # time between frames in seconds.
+DT_PHYSICS = 0.033 # time between frames in seconds.
+
+# interpolation related limits
+MAX_PHYSICS_UPDATES = 1
+MAX_ACCUMULATOR = 0.25
 
 # quadtree
 MAX_NODES = 25_000
@@ -28,4 +32,4 @@ MAX_UNIFORM_DISC_RADIUS = N
 # cam
 MOVEMENT_KEY_NAMES = ['W', 'A', 'S', 'D']
 MIN_ZOOM = 1e-8
-MIN_SPEED, MAX_SPEED = 1, 1000
+MIN_SPEED, MAX_SPEED = 1, 5000
