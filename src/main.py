@@ -52,7 +52,6 @@ class Canvas(app.Canvas):
         """
         self.dt = event.dt
         self.cam.update(self.pressed_keys, self.dt)    
-
         self.accumulator += self.dt
         self.accumulator = min(self.accumulator, MAX_ACCUMULATOR)
         np.copyto(old_positions, positions)

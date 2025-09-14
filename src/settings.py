@@ -7,7 +7,7 @@ import math
 import time
 
 # general game values
-N = 10000 # num orbital particles
+N = 16000 # num orbital particles
 WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600
 HALF_WORLD_LENGTH = N * 2 # the world is a square with side lengths HALF_WORLD_LENGTH * 2 centered at the origin.
 DT_PHYSICS = 0.033 # time between frames in seconds.
@@ -20,7 +20,7 @@ MAX_ACCUMULATOR = 0.25
 MAX_NODES = 25_000
 
 # particle
-G = 10 # gravitational constant
+G = 15 # gravitational constant
 R = 10 # radius of orbital particles
 MIN_RADIUS, MAX_RADIUS = 1, 249
 CENTRAL_PARTICLE_MASS = 1_000_000_000

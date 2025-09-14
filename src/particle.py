@@ -1,4 +1,4 @@
-from settings import N, G, R, DT_PHYSICS, CENTRAL_PARTICLE_MASS, ORBITING_PARTICLE_MASS, MAX_UNIFORM_DISC_RADIUS, HALF_WORLD_LENGTH, np, njit, prange, math, time
+from settings import N, G, R, CENTRAL_PARTICLE_MASS, ORBITING_PARTICLE_MASS, MAX_UNIFORM_DISC_RADIUS, HALF_WORLD_LENGTH, np, njit, prange, math, time
 from utils import calculate_radius, initialize_velocity
 from collision import ccd_resolve, point_in_boundary
 from quadtree import query_bh, get_query_bh_args
