@@ -9,11 +9,6 @@ from utils import interpolate
 app.use_app('PyQt6')
 
 class Canvas(app.Canvas):
-    """
-    vispy equivalent of a game class you would use in pygame games.
-    on_draw: a function that is used for the drawing phase.
-    on_timer: a function that updates the game state every frame.
-    """
     def __init__(self):
         """initializes and shows the window with a size and title."""
         # === Initialize Window ===
