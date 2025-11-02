@@ -62,7 +62,7 @@ class Canvas(app.Canvas):
     def on_draw(self, event):
         """drawing phase updates go here"""
         self.context.clear('black')
-        self.program.draw('points') # CRITICAL. DRAWS THE PARTICLES.
+        self.program.draw('points')
 
     def on_key_press(self, event):
         """use event.key.name to get the key pressed."""
