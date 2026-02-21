@@ -1,3 +1,4 @@
-numba==0.62.1
-PyQt6==6.10.0
-vispy==0.15.2
+numba
+PyQt6
+vispy
+numpy

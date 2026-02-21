@@ -32,23 +32,23 @@ def ccd_resolve(
     vy = p1_vy - p2_vy
     R = p1_r + p2_r
     R2 = R*R
-    
+
     # p_dot_p is effectively distance squared. if its less than R2, then theres a collision at t=0.
     p_dot_p = px*px + py*py
     if p_dot_p < R2:
         resolve_collision(particle_index, candidate_index, 0, positions, velocities, radii)
         return
-    
+
     # if theres no collision already and velocities are zero, then there wont be a collision.
     v_dot_v = vx*vx + vy*vy
     if v_dot_v < epsilon:
         return
-    
+
     # quadratic check
     a = v_dot_v
     b = 2*(px*vx + py*vy)
     c = p_dot_p - R2
-    
+
     # if the discriminant is negative, there arent any real solutions.
     discriminant = b*b - 4*a*c
     if discriminant < 0:
@@ -57,7 +57,7 @@ def ccd_resolve(
     sqrt_disc = np.sqrt(discriminant)
     t1 = (-b - sqrt_disc) / (2*a)
     t2 = (-b + sqrt_disc) / (2*a)
-    
+
     t = dt + 1.0 # sentinel time
     if 0 <= t1 <= dt:
         t = t1
@@ -68,7 +68,7 @@ def ccd_resolve(
         resolve_collision(particle_index, candidate_index, t, positions, velocities, radii)
 
 @njit
-def resolve_collision(particle_index: int, candidate_index: int, t: float, 
+def resolve_collision(particle_index: int, candidate_index: int, t: float,
         positions: np.ndarray, velocities: np.ndarray, radii: np.ndarray
     ) -> None:
     """
@@ -109,6 +109,9 @@ def resolve_collision(particle_index: int, candidate_index: int, t: float,
 
 @njit
 def point_in_boundary(boundary: np.ndarray, px: float, py: float) -> bool:
-    """returns true if point px, py is in a rectangle with left, top, width, height."""
+    """
+    returns true if point px, py is in a boundary (rectangle)
+    with left, top, width, height.
+    """
     left, top, width, height = boundary
     return (left <= px < left + width) and (top <= py < top + height)

@@ -19,7 +19,8 @@ def initialize_velocity(x, y, m_enclosed):
     v = v_t * direction
     return v
 
-def interpolate(accumulator: int, value: Sequence[float], old_value: Sequence[float]
+def interpolate(accumulator: int, value: Sequence[float],
+        old_value:Sequence[float]
     ) -> Sequence[float]:
     """
     Takes in a value and interpolates it between it and its old value one update before the present

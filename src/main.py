@@ -1,12 +1,12 @@
 from settings import *
 from shaders import vertex_shader, fragment_shader
 from camera import Camera
-from particle import (make_particles, update_particles, get_args_for_particle_update, 
+from particle import (make_particles, update_particles, get_args_for_particle_update,
     colors, radii, positions, masses, old_positions)
 from quadtree import update_quadtree, get_args_for_quadtree_update
 from utils import interpolate
 
-app.use_app('PyQt6')
+app.use_app(VISPY_BACKEND)
 
 class Canvas(app.Canvas):
     def __init__(self):
@@ -46,7 +46,7 @@ class Canvas(app.Canvas):
         update phase goes here. this runs every interval seconds, as defined in self.timer.
         """
         self.dt = event.dt
-        self.cam.update(self.pressed_keys, self.dt)    
+        self.cam.update(self.pressed_keys, self.dt)
         self.accumulator += self.dt
         self.accumulator = min(self.accumulator, MAX_ACCUMULATOR)
         np.copyto(old_positions, positions)
@@ -58,6 +58,7 @@ class Canvas(app.Canvas):
         update_quadtree(*get_args_for_quadtree_update(positions, masses))
         self.update_program(interpolate(self.accumulator, positions, old_positions))
         self.update()
+        print(self.fps)
 
     def on_draw(self, event):
         """drawing phase updates go here"""

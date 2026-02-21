@@ -8,13 +8,13 @@ class Camera:
         self.pan_speed = 100
 
     def update_pos(self, key, dt):
-        if key == "W": # up
+        if key == MOVEMENT_KEY_NAMES[0]: # up
             self.pos[1] -= self.pan_speed * dt
-        elif key == "A": # left
+        elif key == MOVEMENT_KEY_NAMES[1]: # left
             self.pos[0] -= self.pan_speed * dt
-        elif key == "S": # down
+        elif key == MOVEMENT_KEY_NAMES[2]: # down
             self.pos[1] += self.pan_speed * dt
-        elif key == "D": # right
+        elif key == MOVEMENT_KEY_NAMES[3]: # right
             self.pos[0] += self.pan_speed * dt
 
     def update_zoom(self, event_y):

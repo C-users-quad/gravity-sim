@@ -6,7 +6,7 @@ from quadtree import query_bh, get_query_bh_args
 central_particle_r = calculate_radius(CENTRAL_PARTICLE_MASS)
 
 radii = np.concatenate([
-    [central_particle_r], 
+    [central_particle_r],
     np.ones(N) * R
 ]).astype(np.float32) # radius.
 colors = np.ones((N + 1, 3), dtype=np.float32) # white.
@@ -81,10 +81,10 @@ def world_border_collisions(
 @njit
 def apply_forces(
         particle_index: int, pseudo_particles: np.ndarray,
-        accelerations: np.ndarray, positions: np.ndarray, G: float, count: int
+        accelerations: np.ndarray, positions: np.ndarray, G: float, num_pseudo_particles: int
     ) -> None:
     epsilon = 1.0
-    if count == 0:
+    if num_pseudo_particles == 0:
         return
 
     px = positions[particle_index, 0]
@@ -93,10 +93,10 @@ def apply_forces(
     ax = 0.0
     ay = 0.0
 
-    for i in range(count):
+    for i in range(num_pseudo_particles):
         dx = pseudo_particles[i, 0] - px
         dy = pseudo_particles[i, 1] - py
-        m = pseudo_particles[i, 2]
+        m  = pseudo_particles[i, 2]
 
         d2 = dx*dx + dy*dy + epsilon
         inv_dist3 = 1.0 / (d2 * math.sqrt(d2))
@@ -109,8 +109,8 @@ def apply_forces(
 
 @njit
 def update_position(
-        particle_index: int, dt: float, positions: np.ndarray, velocities: np.ndarray, 
-        accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float, 
+        particle_index: int, dt: float, positions: np.ndarray, velocities: np.ndarray,
+        accelerations: np.ndarray, masses: np.ndarray, radii: np.ndarray, G: float,
         old_positions: np.ndarray, query_bh_args: tuple
     ) -> None:
     """
@@ -129,8 +129,8 @@ def update_position(
 
     # force update
     px, py = positions[particle_index]
-    pseudo_particles, count = query_bh(*query_bh_args, px, py)
-    apply_forces(particle_index, pseudo_particles, accelerations, positions, G, count)
+    pseudo_particles, num_pseudo_particles = query_bh(*query_bh_args, px, py)
+    apply_forces(particle_index, pseudo_particles, accelerations, positions, G, num_pseudo_particles)
     # collision check between orbitals and central
     near_central = point_in_boundary((-500, -500, 1000, 1000), px, py)
 
@@ -143,13 +143,13 @@ def update_position(
     velocities[particle_index] += 0.5 * (old_a + accelerations[particle_index]) * dt
 
 def get_args_for_particle_update(dt: float):
-    return(dt, N, positions, velocities, 
+    return(dt, N, positions, velocities,
            accelerations, masses, radii, G, old_positions, get_query_bh_args())
 
 @njit
 def update_particles(dt, N, positions, velocities, accelerations, masses, radii, G, old_positions, query_bh_args):
     for i in range(1, N+1):
         update_position(
-        i, dt, positions, velocities, 
+        i, dt, positions, velocities,
         accelerations, masses, radii, G, old_positions, query_bh_args
     )
