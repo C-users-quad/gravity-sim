@@ -6,20 +6,19 @@ from random import randint, choice, uniform
 import numpy as np
 from os.path import join
 from typing import Literal, Sequence, TYPE_CHECKING
-import time
 
 WINDOW_WIDTH, WINDOW_HEIGHT = 1040, 585
 HALF_WORLD_WIDTH = HALF_WORLD_HEIGHT = 10000
 BORDER_WIDTH = 30
 
-NUM_PARTICLES = 2500
-MAX_PARTICLES = 15000
+NUM_PARTICLES = 500
+MAX_PARTICLES = 2000
 
-FRAMES_SKIPPED_FOR_FAR_PARTICLES = 1
+FRAMES_SKIPPED_FOR_FAR_PARTICLES = 10
 MAX_PARTICLE_UPDATES = NUM_PARTICLES # max num particles updated in a single frame
 MIN_RENDER_DISTANCE = 1920
 
-G = 100
+G = 10
 
 MIN_RADIUS, MAX_RADIUS = 2, 249
 MAX_STARTING_VELOCITY = 1000

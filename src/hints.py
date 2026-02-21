@@ -6,7 +6,6 @@ def display_hints(logprinter):
     # prints a hint every minute
     if time % 6000 != 0:
         return
-    type = "hint"
     hints = [
         "You can refill the simulation with particles by pressing r!",
         "You CANT turn off hints. Cry about it until the next update where I implement this.",

@@ -26,7 +26,7 @@ class Particle(pygame.sprite.Sprite):
     """
     Represents a particle in the gravity simulation. Handles physics, rendering, and interactions.
     """
-    def __init__(self, x: float, y: float, vx: float, vy: float, mass: float, 
+    def __init__(self, x: float, y: float, vx: float, vy: float, mass: float,
                  density: float, groups: list[pygame.sprite.Group], particles: pygame.sprite.Group) -> None:
         """
         Initialize a particle with position, velocity, mass, density, and groups.
@@ -60,7 +60,7 @@ class Particle(pygame.sprite.Sprite):
         self.groups = groups
         super().__init__(groups)
         self.update_sprite()
-    
+
     def draw_neighbor_lines(self, surface, cam, grid: SpatialGrid):
         """
         Draw lines from this particle to all its neighbors found by the spatial grid.
@@ -83,7 +83,7 @@ class Particle(pygame.sprite.Sprite):
             x2 = neighbor.x * cam.zoom + offset_x
             y2 = neighbor.y * cam.zoom + offset_y
             pygame.draw.line(surface, (0,255,0), (x1, y1), (x2, y2), 2)
-    
+
     def update_sprite(self):
         """
         Update the particle's image and rect based on its radius and color.
@@ -202,7 +202,7 @@ class Particle(pygame.sprite.Sprite):
             other.radius = calculate_radius(other.mass, other.density)
             other.update_sprite()
             self.kill()
-    
+
     def window_collisions(self, direction):
         """
         Handle collisions with the simulation window boundaries.
@@ -227,7 +227,7 @@ class Particle(pygame.sprite.Sprite):
                 self.rect.right = HALF_WORLD_WIDTH
                 self.v.x *= -1
                 self.x = self.rect.centerx
-    
+
     def update_position(self, dt: float, quadtree: QuadTree, grid: SpatialGrid, counter) -> None:
         """
         Update the particle's position based on velocity and handle window collisions.
@@ -237,14 +237,13 @@ class Particle(pygame.sprite.Sprite):
         """
         self.x += self.v.x * dt + 0.5 * self.a.x * dt*dt
         self.window_collisions("horizontal")
-        
+
         self.y += self.v.y * dt + 0.5 * self.a.y * dt*dt
         self.window_collisions("vertical")
 
         old_a = self.a
         self.a = pygame.Vector2(0, 0)
 
-        
         pseudo_particles = quadtree.query_bh(self)
         self.apply_forces(pseudo_particles, dt)
         for other in grid.get_neighbors(self):
@@ -256,9 +255,9 @@ class Particle(pygame.sprite.Sprite):
             R2 = (other.radius + self.radius)**2
             if R2 >= d2: # r2d2 yoooo
                 self.combine_with(other)
-        
+
         self.v += 0.5 * (old_a + self.a) * dt
-        
+
         self.rect.center = (self.x, self.y)
 
     def update_color(self, percentiles):
@@ -287,7 +286,7 @@ class Particle(pygame.sprite.Sprite):
         else:
             self.color = colors[-1]
         self.old_mass = self.mass
-    
+
     def one_info_particle(self):
         """
         Ensure only one particle is marked for info display at a time.
@@ -301,7 +300,7 @@ class Particle(pygame.sprite.Sprite):
         self.old_pos = (self.x, self.y)
         self.update_position(dt, quadtree, grid, counter)
         self.new_pos = (self.x, self.y)
-    
+
     def update_drawing(self, percentiles, cam):
         self.update_sprite()
         self.update_color(percentiles)
@@ -310,7 +309,7 @@ class Particle(pygame.sprite.Sprite):
             self.draw_highlight(cam)
         if self.being_dragged:
             self.draw_highlight(cam)
-    
+
     def update(self, dt, cam, percentiles, grid, quadtree, counter):
         """
         Update the particle each frame: apply forces, update position, color, and highlight.
