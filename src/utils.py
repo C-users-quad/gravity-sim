@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from settings import *
 from chatlog import LogText
 if TYPE_CHECKING:
@@ -43,6 +45,13 @@ def combined_density(p1: "Particle", p2: "Particle") -> float:
     min_density = 0.01
     max_density = 1000
     return max(min_density, min(density, max_density))
+
+def asset_path(relative):
+    if getattr(sys, "frozen", False):
+        base = Path(sys._MEIPASS)
+    else:
+        base = Path(__file__).resolve().parent.parent
+    return base / relative
 
 def draw_info(infos: list[str], font: pygame.Font, display: pygame.display, corner: Literal["topleft", "topright", "bottomleft", "bottomright"]) -> None:
     """
