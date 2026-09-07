@@ -1,4 +1,8 @@
-# What is it?
+# Gravity Sim
+
+### [Download](https://github.com/C-users-quad/gravity-sim/releases/latest)
+
+## What is it?
 
 **This is a 2D simulation that uses Newton's laws of gravity to simulate interactions between any number of particles.**
 
@@ -8,15 +12,15 @@
   <em>The simulation in debug mode with the spatial hashing boundaries visible</em>
 </p>
 
-# How to use
+## Controls
 
-## Mouse Buttons
+### Mouse Buttons
 
 - Hold **LEFT CLICK** to drag particles.
 - **RIGHT CLICK** to display info in the top-left corner about the particle / select a particle
 - **SCROLL WHEEL** to change camera zoom
 
-## Keyboard Keys
+### Keyboard Keys
 
 - **WASD** to move the camera around
 - **ENTER** to open the particle creation menu
@@ -26,7 +30,7 @@
 - **BACKSPACE** to delete the selected/dragged particle
 - **R** to refill simulation with particles
 
-## Key + Mouse Combos
+### Key + Mouse Combos
 
 - **LEFT CTRL + SCROLL WHEEL** to change the camera speed
 - Hold **LEFT CTRL + RIGHT CLICK** to follow the selected particle
