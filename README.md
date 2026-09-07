@@ -2,13 +2,19 @@
 
 **This is a 2D simulation that uses Newton's laws of gravity to simulate interactions between any number of particles.**
 
+<p align="center">
+  <img width="300" height="300" alt="game in debug mode" src="assets/game_preview.png">
+  <br>
+  <em>The simulation in debug mode with the spatial hashing boundaries visible</em>
+</p>
+
 # How to use
 
 ## Mouse Buttons
 
 - Hold **LEFT CLICK** to drag particles.
 - **RIGHT CLICK** to display info in the top-left corner about the particle / select a particle
-- **SCROLL WHEEL** to change camera speed
+- **SCROLL WHEEL** to change camera zoom
 
 ## Keyboard Keys
 
@@ -22,5 +28,5 @@
 
 ## Key + Mouse Combos
 
-- **LEFT CTRL + SCROLL WHEEL** to change the camera zoom
+- **LEFT CTRL + SCROLL WHEEL** to change the camera speed
 - Hold **LEFT CTRL + RIGHT CLICK** to follow the selected particle
