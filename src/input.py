@@ -21,7 +21,7 @@ class Input:
         """
         world_mouse_pos = (pygame.Vector2(pygame.mouse.get_pos()) - self.game.particles.offset) / self.game.cam.zoom
         delta_mouse_pos = world_mouse_pos - self.old_world_mouse_pos
-        
+
         mouse_presses = pygame.mouse.get_pressed()
         key_just_pressed = pygame.key.get_just_pressed()
         key_held = pygame.key.get_pressed()
@@ -51,7 +51,7 @@ class Input:
                     self.dragged_particle.v = self.dragged_particle.v.normalize() * PARTICLE_SPEED_AFTER_DRAGGING if self.dragged_particle.v else self.dragged_particle.v
                 self.dragged_particle.v = delta_mouse_pos / dt
                 self.dragged_particle = None
-                
+
         # display particle info with right click
         if mouse_presses[2]:
             if not self.info_particle:
@@ -67,13 +67,13 @@ class Input:
                 if key_held[pygame.K_LCTRL]:
                     particle_pos = self.info_particle.rect.center
                     self.game.cam.set_pos(particle_pos)
-        
+
         # get rid of particle info
         if key_just_pressed[pygame.K_ESCAPE]:
             if self.particle_menu:
-                self.particle_menu.exit_menu(self.logprinter, "dont create particle", self.game.cam)
+                self.particle_menu.exit_menu(self.game.logprinter, "dont create particle", self.game.cam)
                 self.particle_menu = None
-            
+
             elif self.info_particle:
                 self.info_particle.info = False
                 self.info_particle = None
@@ -90,7 +90,7 @@ class Input:
                 self.info_particle.info = True
                 self.particle_menu.exit_menu(self.game.logprinter, "create particle", self.game.cam)
                 self.particle_menu = None
-        
+
         # deletes particle thats being interacted with
         if key_just_pressed[pygame.K_BACKSPACE]:
             if self.info_particle:
@@ -114,3 +114,7 @@ class Input:
             self.game.debug = not self.game.debug
 
         self.old_world_mouse_pos = world_mouse_pos
+
+        # pause game
+        if key_just_pressed[pygame.K_SPACE]:
+            self.game.paused = not self.game.paused

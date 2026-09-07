@@ -30,6 +30,7 @@ class Game:
         self.particle_menu = None
         self.dt = self.clock.tick(FPS) / 1000
         self.debug = False
+        self.paused = False
 
         # groups
         self.particles = ParticleDrawing()
@@ -67,6 +68,22 @@ class Game:
             draw_info(particle_info, self.font, self.display_surf, "topleft")
         else:
             self.info_particle = None
+
+    def draw_game_info(self):
+        """draw game info (keybinds) on screen"""
+        game_info = [
+            "----------[GAME INFO]----------",
+            "WASD to pan camera",
+            "RMB to select particle",
+            "LMB to drag particle (u can fling it)",
+            "ENTER to open particle creation menu and to create particle",
+            "ESC to deselect particle or exit particle menu",
+            "BACKSPACE to delete selected particle",
+            "R to repopulate world with particles",
+            "SCROLL to zoom, hold LCTRL to change panning speed",
+            "\".\" to show debug visuals",
+        ]
+        draw_info(game_info, self.font, self.display_surf, "bottomright")
 
     def draw_cam_info(self):
         """
@@ -151,7 +168,8 @@ class Game:
             self.quadtree.calculate_CoM()
             counter = {"e":0.0} # for debug
 
-            update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree, counter)
+            if not self.paused:
+                update_particles(particles, self.dt, self.cam, percentiles, self.grid, self.quadtree, counter)
 
             self.logtext.update(self.dt)
             self.input.get_input(self.dt)
@@ -172,6 +190,7 @@ class Game:
                 self.draw_cam_info()
                 self.draw_world_border()
                 self.draw_particle_info()
+                self.draw_game_info()
                 self.logtext.draw(self.display_surf)
                 display_hints(self.logprinter)
 
@@ -181,8 +200,6 @@ class Game:
                 self.manager.draw_ui(self.display_surf)
 
             pygame.display.update()
-            if self.debug:
-                print(counter)
 
     def event_handler(self):
         """
@@ -195,14 +212,14 @@ class Game:
 
             self.manager.process_events(event)
 
-            # scrolling speeds up the camera movement speeds
+            # scrolling does cam stuff. yay!
             if event.type == pygame.MOUSEWHEEL:
-                # LCTRL+SCROLL = ZOOM
+                # LCTRL+SCROLL = CAM SPEED
                 if pygame.key.get_pressed()[pygame.K_LCTRL]:
+                    self.cam.speed = self.accelerator.accelerate(self.cam.speed, event.y, self.dt, "cam speed")
+                # SCROLL = CAM ZOOM
+                else:
                     self.cam.zoom = self.accelerator.accelerate(self.cam.zoom, event.y, self.dt, "cam zoom")
-                    continue
-                # SCROLL = CAM SPEED
-                self.cam.speed = self.accelerator.accelerate(self.cam.speed, event.y, self.dt, "cam speed")
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:

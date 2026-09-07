@@ -9,7 +9,7 @@ def display_hints(logprinter):
     hints = [
         "You can refill the simulation with particles by pressing r!",
         "You CANT turn off hints. Cry about it until the next update where I implement this.",
-        "Im not updating this ever, too lazy. (/j)",
+        "Im not updating this ever. too lazy. (/j... unless...)",
         "You can stop tracking a particle's info by pressing escape!",
         "You can shower by standing up and turning the big handle in your bathroom.",
         "When you release a dragged particle, its launched in the direction and speed of the cursor just before you let go!",

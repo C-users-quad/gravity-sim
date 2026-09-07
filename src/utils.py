@@ -44,7 +44,7 @@ def combined_density(p1: "Particle", p2: "Particle") -> float:
     max_density = 1000
     return max(min_density, min(density, max_density))
 
-def draw_info(infos: list[str], font: pygame.Font, display: pygame.display, corner: Literal["topleft", "topright"]) -> None:
+def draw_info(infos: list[str], font: pygame.Font, display: pygame.display, corner: Literal["topleft", "topright", "bottomleft", "bottomright"]) -> None:
     """
     Draw a list of info strings on the display surface at the specified corner.
     Args:
@@ -58,9 +58,16 @@ def draw_info(infos: list[str], font: pygame.Font, display: pygame.display, corn
     y_offset = 10
     padding = 4
     spacing = 4
-    
-    if corner == "topleft": x = 10
-    if corner == "topright": x = display_rect.right - 10
+
+    if corner == "bottomleft" or corner == "bottomright":
+        infos = infos[::-1]
+        y_offset = display_rect.bottom - 10
+
+    match corner:
+        case "topleft" | "bottomleft":
+            x = 10
+        case "topright" | "bottomright":
+            x = display_rect.right - 10
 
     for info in infos:
         text_surf = font.render(info, True, "white")
@@ -77,11 +84,20 @@ def draw_info(infos: list[str], font: pygame.Font, display: pygame.display, corn
         elif corner == "topright":
             rect_pos = (x - rect_width, y_offset)
             text_rect.topleft = (rect_pos[0] + padding, rect_pos[1] + padding)
+        elif corner == "bottomleft":
+            rect_pos = (x, y_offset - rect_height)
+            text_rect.bottomleft = (rect_pos[0] + padding, y_offset - padding)
+        elif corner == "bottomright":
+            rect_pos = (x - rect_width, y_offset - rect_height)
+            text_rect.bottomleft = (rect_pos[0] + padding, y_offset - padding)
 
         display.blit(rect_surf, rect_pos)
         display.blit(text_surf, text_rect)
-        y_offset += rect_height + spacing
-        
+        if corner == "topleft" or corner == "topright":
+            y_offset += rect_height + spacing
+        if corner == "bottomleft" or corner == "bottomright":
+            y_offset -= rect_height + spacing
+
 def truncate_decimal(decimal: float, decimal_places: int) -> float:
     """
     Truncate a decimal number to a fixed number of decimal places.
@@ -154,7 +170,7 @@ class QuadTree:
             if self.level >= self.maxlevel:
                 self.particles_in_node.append(particle)
                 return
-            
+
             if not self.divided:
                 self.divide_node()
                 self.place_particle(particle)
@@ -210,7 +226,7 @@ class QuadTree:
                 self.x_com = sum(p.mass * p.x for p in self.particles_in_node) / self.mass
                 self.y_com = sum(p.mass * p.y for p in self.particles_in_node) / self.mass
             return self.x_com, self.y_com, self.mass
-        
+
         self.mass = self.x_com = self.y_com = 0.0
         for node in self.children:
             cx, cy, mass = node.calculate_CoM()
@@ -237,7 +253,7 @@ class QuadTree:
         """
         if pseudo_particles is None:
             pseudo_particles = []
-        
+
         if not self.s2:
             s = max(self.boundary.width, self.boundary.height)
             self.s2 = s*s
@@ -246,7 +262,7 @@ class QuadTree:
         d2 = dx*dx + dy*dy
         epsilon = 1e-5
         if d2 < epsilon: # avoid division by zero
-            d2 = epsilon 
+            d2 = epsilon
 
         if self.s2 < self.theta2 * d2:
             if self.mass:
@@ -265,7 +281,7 @@ class QuadTree:
                 pseudo_particles = np.empty((0,3), dtype=np.float64)
             elif pseudo_particles.ndim == 1:
                 pseudo_particles = pseudo_particles[np.newaxis, :]
-                
+
         return pseudo_particles
 
     def query_circle(self, particle: "Particle") -> list["Particle"]:
@@ -284,7 +300,7 @@ class QuadTree:
 
         if not self.boundary.colliderect(particle.rect):
             return found_particles
-        
+
         for p in self.particles_in_node:
             dx = p.x - center[0]
             dy = p.y - center[1]
@@ -294,7 +310,7 @@ class QuadTree:
 
         if not self.divided:
             return found_particles
-        
+
         for node in self.children:
             found_particles.extend(node.query_circle(particle))
 
@@ -302,10 +318,10 @@ class QuadTree:
 
     def draw_line(self, p1: "Particle", p2: "Particle", zoom: float, offset: pygame.Vector2):
         pygame.draw.line(
-            pygame.display.get_surface(), 
-            "white", 
-            (p1.x * zoom + offset.x, p1.y * zoom + offset.y), 
-            (p2.x * zoom + offset.x, p2.y * zoom + offset.y), 
+            pygame.display.get_surface(),
+            "white",
+            (p1.x * zoom + offset.x, p1.y * zoom + offset.y),
+            (p2.x * zoom + offset.x, p2.y * zoom + offset.y),
             5
         )
 
@@ -348,7 +364,7 @@ class SpatialGrid:
         Clear all cells in the grid.
         """
         self.grid = {}
-    
+
     def draw_lines_to_neighbors(self, particle: "Particle", zoom: float, offset: pygame.Vector2) -> None:
         """
         Draws lines from one particle's center to its neighbors' centers.
@@ -412,7 +428,7 @@ class SpatialGrid:
             neighbors.extend(self.grid[direction])
 
         return neighbors
-    
+
 def find_particle(particles: list["Particle"], mouse_pos: tuple[float, float]) -> "Particle | None":
     """
     Find the first particle at the given mouse position.
@@ -423,9 +439,9 @@ def find_particle(particles: list["Particle"], mouse_pos: tuple[float, float]) -
         Particle or None: The found particle or None.
     """
     for particle in particles:
-        if particle.rect.collidepoint(mouse_pos):    
+        if particle.rect.collidepoint(mouse_pos):
             return particle
-        
+
 def calculate_radius(mass: float, density: float) -> float:
     """
     Calculate the radius of a particle based on its mass and density.
@@ -514,22 +530,22 @@ class Accelerator:
             starting_velocity = 0.7
             self.accel_when_scrolled = 0.5
             self.max_velocity = 2
-            min_return = MIN_ZOOM 
-            max_return = MAX_ZOOM 
+            min_return = MIN_ZOOM
+            max_return = MAX_ZOOM
 
         if event_y != self.old_event_y:
             self.velocity = starting_velocity / dt * event_y
 
         if abs(self.velocity) < 1e-99:
             self.velocity = starting_velocity / dt * event_y
-            
-        self.acceleration = event_y * self.accel_when_scrolled 
+
+        self.acceleration = event_y * self.accel_when_scrolled
         self.velocity += self.acceleration * dt
         self.velocity = max(-self.max_velocity, min(self.velocity, self.max_velocity)) # clamps velocity
         self.old_event_y = event_y
 
         return max(min_return, min(value + self.velocity * dt, max_return))
-    
+
 _cached_color_bins = None
 
 def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np.ndarray:
@@ -539,10 +555,10 @@ def calculate_color_bins(particles: pygame.sprite.Group, frame_count: int) -> np
     if frame_count % skip_frames != 0:
         if _cached_color_bins is not None:
             return _cached_color_bins
-        
+
     if len(particles) < 1:
         return
-    
+
     masses = np.array([p.mass for p in particles])
     percentiles = np.percentile(masses, np.linspace(0, 100, 11))  # 10 intervals
     _cached_color_bins = percentiles
@@ -563,7 +579,7 @@ def split_particles_not_in_render(particles: Sequence["Particle"], n_particles_r
     starting_split_index += split_size
 
     return particles
-    
+
 def update_particles(particles: Sequence["Particle"], dt: float, cam: "Cam", percentiles: np.ndarray, grid: SpatialGrid, quadtree: QuadTree, counter) -> None:
     for particle in particles:
         particle.update(dt, cam, percentiles, grid, quadtree, counter)
